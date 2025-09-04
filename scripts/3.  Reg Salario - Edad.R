@@ -1,9 +1,12 @@
 ## Este scrip desarrolla el punto 3 Age-wage profile.
 
 load("C:/Users/investigacion/Desktop/data_imputada_GEIH.RData")
+
+# intalación de paquetes 
 library(dplyr)
 library(stargazer)
 library(ggplot2)
+library(boot)
 
 #Renombramos la base de datos
 db <- df_2
@@ -161,3 +164,56 @@ ggplot(df_grafico, aes(x = edad, y = salariopredicho)) +
 ggsave("Perfil_edad–salario_estimado_con_controles.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
 
+
+
+# BOOTSTRAP DEL MODELO CON INTERVALOS DE CONFIANZA 
+
+set.seed(2025)
+
+#Creamos una función que me permita sacar los coeficientes de mi modelo simple
+coeficientes <- function(bd_seleccionados, indices) {
+  fit <- lm(ln_wage ~ age + agesqr, data = bd_seleccionados[indices, ])
+  return(coef(fit))
+}
+
+#Corremos el bootstrap y obtenemos los indices y los erroees estandar
+bootstrap <- boot(data = bd_seleccionados, statistic = coeficientes, R = 10000)
+coeficientesboostrap <- bootstrap$t0
+errores <- apply(bootstrap$t,2,sd)
+
+# Crear una secuencia de edades para estimar el log del ingreso
+edades <- seq(min(bd_seleccionados$age,na.rm=TRUE), max(bd_seleccionados$age,na.rm=TRUE),length=50)
+edades
+
+#Creamos los intervalos de confianza 
+
+salario_estimado <- coeficientesboostrap[1] + coeficientesboostrap[2]*edades + coeficientesboostrap[3]*edades^2
+
+icinferior <- (coeficientesboostrap[1] - 1.96*errores[1]) +
+  (coeficientesboostrap[2] - 1.96*errores[2])*edades +
+  (coeficientesboostrap[3] - 1.96*errores[3])*(edades^2)
+
+icsuperior <- (coeficientesboostrap[1] + 1.96*errores[1]) +
+  (coeficientesboostrap[2] + 1.96*errores[2])*edades +
+  (coeficientesboostrap[3] + 1.96*errores[3])*(edades^2)
+
+
+# Creamos un Data frame con los resultados de salario estimado e intervalos de confianza
+df <- data.frame(
+  edad = edades,
+  salario_estimado = salario_estimado,
+  limite_inferior = icinferior,
+  limite_superior = icsuperior
+)
+
+# Grafico 
+
+ggplot(df, aes(x = edad, y = salario_estimado)) +
+  geom_ribbon(aes(ymin = limite_inferior, ymax = limite_superior), alpha = 0.25) +
+  geom_line(linewidth = 1, color = "green") +
+  labs(title = "Perfil edad–salario (log) con  bootstrap",
+       x = "Edad", y = "Log(salario)") +
+  theme_classic()
+
+ggsave("perfil_edad_salario_bootstrap.jpg", plot = last_plot(),
+       width = 8, height = 6, dpi = 300)
