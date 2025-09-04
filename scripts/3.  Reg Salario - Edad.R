@@ -217,3 +217,8 @@ ggplot(df, aes(x = edad, y = salario_estimado)) +
 
 ggsave("perfil_edad_salario_bootstrap.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
+
+
+save(bd_seleccionados, file = "bd_seleccionados.RData")
+
+
