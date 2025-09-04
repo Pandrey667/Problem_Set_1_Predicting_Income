@@ -57,3 +57,85 @@ stargazer(reggenero2,
                                "Microempresa"),
           keep.stat = c("n", "rsq", "adj.rsq"),
           type = "text")
+
+
+
+
+
+# APLICACIÓN DE TEOREMA DE FWL CON BOOTSTRAP
+
+#creamos variable female sin etiquetas para aplicar FWL
+bd_seleccionados <- bd_seleccionados %>%
+  dplyr::mutate(female_num = ifelse(female == "Mujer", 1, 0))
+
+
+# Obtenemos los residuales de la regresión de los controles sobre la variable Female
+
+bd_seleccionados$res_mujer <- resid(
+  lm(female_num ~ nivel_educativo + formal + oficio + relab +
+       totalHoursWorked + sizeFirm + estrato1 + jefe_hogar +
+       age + agesqr + microEmpresa,
+     data = bd_seleccionados,
+     na.action = na.exclude)
+)
+
+
+# Obtenemos los residuales de la regresión de los controles sobre el salario 
+bd_seleccionados$res_salario <- resid(
+  lm(ln_wage ~ nivel_educativo + formal + oficio + relab +
+       totalHoursWorked + sizeFirm + estrato1 + jefe_hogar +
+       age + agesqr + microEmpresa,
+     data = bd_seleccionados,
+     na.action = na.exclude)
+)
+
+# Regresamos los residuales del salario contra residuales de female 
+regbrecha <- lm(res_salario ~ res_mujer, data = bd_seleccionados)
+stargazer(regbrecha,
+          title = "Brecha salarial por género (Método FWL)",
+          dep.var.labels = "Residuales del salario",
+          covariate.labels = c("Residuales de mujer"),
+          keep.stat = c("n", "rsq", "adj.rsq"),
+          digits = 3,
+          type = "text")
+
+
+# Comparamos nuestros tres modelos 
+stargazer(reggenero, reggenero2, regbrecha,
+          title = "Comparación de modelos de brecha salarial",
+          dep.var.labels = c("Logaritmo del salario",
+                             "Logaritmo del salario (con controles)",
+                             "Residuales del salario"),
+          covariate.labels = c("Mujer", "Controles", "Residuales de mujer"),
+          keep.stat = c("n", "rsq", "adj.rsq"),
+          digits = 3,
+          align = TRUE,
+          type = "text")
+
+
+## Usamos FWL  con bootstrap 
+
+btrap <- function(data, index){
+  d <- data[index, , drop = FALSE]
+  d$res_mujer <- resid(
+    lm(female_num ~ nivel_educativo + formal + oficio + relab +
+         totalHoursWorked + sizeFirm + estrato1 + jefe_hogar +
+         age + agesqr + microEmpresa,
+       data = d, na.action = na.exclude)
+  )
+  d$res_salario <- resid(
+    lm(ln_wage ~ nivel_educativo + formal + oficio + relab +
+         totalHoursWorked + sizeFirm + estrato1 + jefe_hogar +
+         age + agesqr + microEmpresa,
+       data = d, na.action = na.exclude)
+  )
+  
+  coef(lm(res_salario ~ res_mujer, data = d))[2]
+}
+
+
+btrap(bd_seleccionados, 1:nrow(bd_seleccionados))
+
+
+set.seed(2025)
+boot(bd_seleccionados, btrap, R = 10000)
