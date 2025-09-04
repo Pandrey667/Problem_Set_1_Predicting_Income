@@ -1,5 +1,9 @@
 ## Este scrip desarrolla el punto 3 Age-wage profile.
 
+load("C:/Users/investigacion/Desktop/data_imputada_GEIH.RData")
+library(dplyr)
+library(stargazer)
+library(ggplot2)
 
 #Renombramos la base de datos
 db <- df_2
@@ -85,7 +89,7 @@ stargazer(regedadsalario,
 
 
 # Grafica para ver la edad donde el ingreso comienza a descender
-library(ggplot2)
+
 #Calculo de edad maxima
 b <- coef(regedadsalario)
 edad_pico <- -b["age"] / (2 * b["agesqr"])
@@ -108,6 +112,9 @@ ggplot(df_grafico, aes(edad, salariopredicho)) +
        x = "Edad", y = "Log salario") +
   theme_classic()
 
+
+ggsave("perfil_edad_salario.jpg", plot = last_plot(),
+       width = 8, height = 6, dpi = 300)
 
 
 # REGRESIÓN 1 : SALARIO - EDAD  - CONTROLES
@@ -150,4 +157,7 @@ ggplot(df_grafico, aes(x = edad, y = salariopredicho)) +
   labs(title = "Perfil edad–salario estimado (con controles)",
        x = "Edad", y = "Log salario") +
   theme_classic()
+
+ggsave("Perfil_edad–salario_estimado_con_controles.jpg", plot = last_plot(),
+       width = 8, height = 6, dpi = 300)
 
