@@ -1,4 +1,4 @@
-# Repositorio de Plantilla – Problem Set 1: Predicción de Ingresos
+# Problem Set 1: Predicción de Ingresos
 
 ## Equipo: Carlos Alape , Yenny Castillo, Andrey Rincón, Fabian Vidal
 
