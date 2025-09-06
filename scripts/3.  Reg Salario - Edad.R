@@ -1,6 +1,12 @@
 ## Este scrip desarrolla el punto 3 Age-wage profile.
 
-setwd() <- load("C:/Users/investigacion/Desktop/base_taller_BD.RData")
+
+Directorio <- "C:/Users/investigacion/Desktop/BD ML/Taller 1 BDML/PS_Repo/stores"
+
+setwd(Directorio)
+load("base_taller_BD.RData")
+
+
 
 # intalación de paquetes 
 library(tidyverse)
@@ -211,6 +217,27 @@ ggplot(df_grafico, aes(x = edad, y = salariopredicho)) +
 
 ggsave("Perfil_edad–salario_estimado_sin_maloscontroles.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
+
+# Creamos tabla comparativa de las tres regresiones 
+# Formato Texto R
+stargazer(regedadsalario, regedadsalario2, regedadsalario3,
+          type = "text",
+          title = "Perfil edad–salario (comparativo)",
+          dep.var.labels = "Log salario",
+          column.labels = c("Básico", "Con controles", "Sin malos controles"),
+          keep = c("age", "agesqr"),
+          covariate.labels = c("Edad", "Edad²"),
+          keep.stat = c("n", "rsq", "adj.rsq"))
+
+# Formato latex
+stargazer(regedadsalario, regedadsalario2, regedadsalario3,
+          type = "latex", out = "tabla_edad_salario.tex",
+          title = "Perfil edad–salario (comparativo)",
+          dep.var.labels = "Log salario",
+          column.labels = c("Básico", "Con controles", "Sin malos controles"),
+          keep = c("age", "agesqr"),
+          covariate.labels = c("Edad", "Edad²"),
+          keep.stat = c("n", "rsq", "adj.rsq"))
 
 
 
