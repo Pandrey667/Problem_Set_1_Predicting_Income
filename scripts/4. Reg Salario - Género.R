@@ -218,7 +218,8 @@ ggplot() +
        x = "Edad", y = "Log salario",
        color = "Género") +
   scale_color_manual(values = c("Hombres" = "#1b9e77", "Mujeres" = "#d95f02")) +
-  theme_minimal(base_size = 14)
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "bottom")
 
 ggsave("perfil_edad_salario_genero.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
