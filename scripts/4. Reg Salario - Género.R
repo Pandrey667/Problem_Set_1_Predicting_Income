@@ -33,13 +33,12 @@ bd_seleccionados <- db %>%
 bd_seleccionados <- bd_seleccionados %>%
   filter(is.finite(ln_wage))
 
-#Regresión con nuevos controles
+#Regresión con nuevos controles ( Sin los malos controles previamente identificados) 
 
 reggenero2 <- lm(
   ln_wage ~ female +
     nivel_educativo + formal + oficio + relab +
-    totalHoursWorked + sizeFirm + estrato1 +
-    jefe_hogar + age + agesqr +  microEmpresa,
+    totalHoursWorked + sizeFirm + age + agesqr +  microEmpresa,
   data = bd_seleccionados
 )
 
@@ -73,7 +72,7 @@ bd_seleccionados <- bd_seleccionados %>%
 
 bd_seleccionados$res_mujer <- resid(
   lm(female_num ~ nivel_educativo + formal + oficio + relab +
-       totalHoursWorked + sizeFirm + estrato1 + jefe_hogar +
+       totalHoursWorked + sizeFirm  +
        age + agesqr + microEmpresa,
      data = bd_seleccionados,
      na.action = na.exclude)
@@ -83,7 +82,7 @@ bd_seleccionados$res_mujer <- resid(
 # Obtenemos los residuales de la regresión de los controles sobre el salario 
 bd_seleccionados$res_salario <- resid(
   lm(ln_wage ~ nivel_educativo + formal + oficio + relab +
-       totalHoursWorked + sizeFirm + estrato1 + jefe_hogar +
+       totalHoursWorked + sizeFirm + 
        age + agesqr + microEmpresa,
      data = bd_seleccionados,
      na.action = na.exclude)
@@ -119,13 +118,13 @@ btrap <- function(data, index){
   d <- data[index, , drop = FALSE]
   d$res_mujer <- resid(
     lm(female_num ~ nivel_educativo + formal + oficio + relab +
-         totalHoursWorked + sizeFirm + estrato1 + jefe_hogar +
+         totalHoursWorked + sizeFirm + 
          age + agesqr + microEmpresa,
        data = d, na.action = na.exclude)
   )
   d$res_salario <- resid(
     lm(ln_wage ~ nivel_educativo + formal + oficio + relab +
-         totalHoursWorked + sizeFirm + estrato1 + jefe_hogar +
+         totalHoursWorked + sizeFirm + 
          age + agesqr + microEmpresa,
        data = d, na.action = na.exclude)
   )
@@ -195,18 +194,26 @@ dfgrafico <- data.frame(
   mujeres = prediccionmujeres$fit
 )
 
+
+
+etiquetas <- sprintf("Edad pico Hombres: %.1f (IC95%% %.1f–%.1f)\nEdad pico Mujeres: %.1f (IC95%% %.1f–%.1f)",
+                       picohombre, ci_h[1], ci_h[2],
+                       picomujer, ci_m[1], ci_m[2])
+
 ggplot() +
   geom_line(data = dfgrafico, aes(x = edad, y = hombres, color = "Hombres"), size = 1) +
   geom_line(data = dfgrafico, aes(x = edad, y = mujeres, color = "Mujeres"), size = 1) +
   geom_vline(xintercept = picohombre, color = "#1b9e77", linetype = "dashed") + 
-  geom_vline(xintercept = picomujer, color = "#d95f02", linetype = "dashed") + 
-  # Bandas de IC
+  geom_vline(xintercept = picomujer,  color = "#d95f02", linetype = "dashed")  +
   annotate("rect", xmin = ci_h[1], xmax = ci_h[2],
            ymin = -Inf, ymax = Inf,
            alpha = 0.15, fill = "#66c2a5") + 
   annotate("rect", xmin = ci_m[1], xmax = ci_m[2],
            ymin = -Inf, ymax = Inf,
            alpha = 0.15, fill = "#fc8d62") +  
+  annotate("text", x = max(seqedades) * 0.7, 
+           y = max(c(dfgrafico$hombres, dfgrafico$mujeres), na.rm = TRUE),
+           label = etiquetas, hjust = 0, vjust = 1, color = "black", size = 4) +
   labs(title = "Perfil Edad-Salario por Género",
        x = "Edad", y = "Log salario",
        color = "Género") +
@@ -215,9 +222,6 @@ ggplot() +
 
 
 
-ggsave("perfil_edad_salario_genero.jpg", plot = last_plot(),
-       width = 8, height = 6, dpi = 300)
-
-
 save(bd_seleccionados, file = "bd_seleccionados.RData")
+
 
