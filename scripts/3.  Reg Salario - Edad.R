@@ -214,8 +214,6 @@ ggsave("Perfil_edad–salario_estimado_sin_maloscontroles.jpg", plot = last_plot
 
 
 
-
-
 # BOOTSTRAP DEL MODELO CON INTERVALOS DE CONFIANZA 
 
 set.seed(2025)
@@ -267,7 +265,6 @@ ggplot(df, aes(x = edad, y = salario_estimado)) +
 
 ggsave("perfil_edad_salario_bootstrap.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
-
 
 save(bd_seleccionados, file = "bd_seleccionados.RData")
 
