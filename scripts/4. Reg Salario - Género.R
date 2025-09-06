@@ -137,7 +137,7 @@ btrap(bd_seleccionados, 1:nrow(bd_seleccionados))
 
 
 set.seed(2025)
-boot(bd_seleccionados, btrap, R = 10000)
+boot(bd_seleccionados, btrap, R = 1000)
 
 
 

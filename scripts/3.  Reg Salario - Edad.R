@@ -1,6 +1,6 @@
 ## Este scrip desarrolla el punto 3 Age-wage profile.
 
-load("C:/Users/investigacion/Desktop/base_taller_BD.RData")
+setwd() <- load("C:/Users/investigacion/Desktop/base_taller_BD.RData")
 
 # intalación de paquetes 
 library(tidyverse)
@@ -264,8 +264,8 @@ df <- df %>% mutate(salario_estimado = exp(salario_estimado),
 ggplot(df, aes(x = edad, y = salario_estimado)) +
   geom_ribbon(aes(ymin = limite_inferior, ymax = limite_superior), alpha = 0.25) +
   geom_line(linewidth = 1, color = "green") +
-  labs(title = "Perfil edad–salario (log) con  bootstrap",
-       x = "Edad", y = "Log(salario)") +
+  labs(title = "Perfil edad–salario con  bootstrap",
+       x = "Edad", y = "Salario en $ ") +
   theme_classic()
 
 ggsave("perfil_edad_salario_bootstrap.jpg", plot = last_plot(),
