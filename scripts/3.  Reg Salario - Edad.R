@@ -1,6 +1,6 @@
 ## Este scrip desarrolla el punto 3 Age-wage profile.
 
-load("C:/Users/investigacion/Desktop/data_imputada_GEIH.RData")
+load("C:/Users/investigacion/Desktop/base_taller_BD.RData")
 
 # intalación de paquetes 
 library(tidyverse)
@@ -225,7 +225,7 @@ coeficientes <- function(bd_seleccionados, indices) {
 }
 
 #Corremos el bootstrap y obtenemos los indices y los erroees estandar
-bootstrap <- boot(data = bd_seleccionados, statistic = coeficientes, R = 10000)
+bootstrap <- boot(data = bd_seleccionados, statistic = coeficientes, R = 1000)
 coeficientesboostrap <- bootstrap$t0
 errores <- apply(bootstrap$t,2,sd)
 
@@ -254,6 +254,11 @@ df <- data.frame(
   limite_superior = icsuperior
 )
 
+df <- df %>% mutate(salario_estimado = exp(salario_estimado),
+                    limite_inferior = exp(limite_inferior),
+                    limite_superior = exp(limite_superior))
+
+
 # Grafico 
 
 ggplot(df, aes(x = edad, y = salario_estimado)) +
@@ -265,6 +270,7 @@ ggplot(df, aes(x = edad, y = salario_estimado)) +
 
 ggsave("perfil_edad_salario_bootstrap.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
+
 
 save(bd_seleccionados, file = "bd_seleccionados.RData")
 
