@@ -3,9 +3,8 @@
 load("C:/Users/investigacion/Desktop/data_imputada_GEIH.RData")
 
 # intalación de paquetes 
-library(dplyr)
+library(tidyverse)
 library(stargazer)
-library(ggplot2)
 library(boot)
 
 #Renombramos la base de datos
@@ -163,6 +162,57 @@ ggplot(df_grafico, aes(x = edad, y = salariopredicho)) +
 
 ggsave("Perfil_edad–salario_estimado_con_controles.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
+
+
+
+# Para mejorar nuestro modelo incluimos las variables de control sin estrato ni jefe de hogar.
+# El analisis de nuestros controles nos hace reflexionar que la variable de estrato
+# puede considerarse un mal control porque puede estar correlacionado con el salario
+# como consecuencia del mismo. Ademas,  la variable jefe_hogar puede llegar a ser un mas control, 
+# ya que el salario puede condicionar quién es jefe de hogar, no solo al revés.
+
+
+regedadsalario3 <- lm( ln_wage ~ age + agesqr + totalHoursWorked + female + formal +  nivel_educativo + 
+                        + relab + sizeFirm,data = bd_seleccionados)
+summary(regedadsalario3)
+stargazer(regedadsalario3,
+          type = "text",
+          title = "Perfil edad-salario con controles",
+          dep.var.labels = "Log salario",
+          covariate.labels = c("Edad", "Edad²"),
+          keep.stat = c("n", "rsq"))
+
+
+#Calculo de edad maxima
+
+b <- coef(regedadsalario3)
+edad_pico2 <- -b["age"] / (2 * b["agesqr"])
+
+# Secuencia de edades 
+edades3 <- seq(min(bd_seleccionados$age, na.rm = TRUE),
+               max(bd_seleccionados$age, na.rm = TRUE), by = 1)
+
+# Valores predichos
+salariopredicho3 <- b["(Intercept)"] + b["age"] * edades2 + b["agesqr"] * (edades2^2)
+
+# Creamos un df para la grafica
+df_grafico <- data.frame(edad = edades3, salariopredicho = salariopredicho3)
+
+
+ggplot(df_grafico, aes(x = edad, y = salariopredicho)) +
+  geom_line(color = "purple") +
+  geom_vline(xintercept = edad_pico2, linetype = "dashed", color = "red") +
+  geom_text(aes(x = edad_pico2, y = max(salariopredicho, na.rm = TRUE),
+                label = paste("Pico ≈", round(edad_pico2, 1), "años")),
+            vjust = -0.5, color = "red") +
+  labs(title = "Perfil edad–salario estimado (sin malos controles)",
+       x = "Edad", y = "Log salario") +
+  theme_classic()
+
+ggsave("Perfil_edad–salario_estimado_sin_maloscontroles.jpg", plot = last_plot(),
+       width = 8, height = 6, dpi = 300)
+
+
 
 
 
