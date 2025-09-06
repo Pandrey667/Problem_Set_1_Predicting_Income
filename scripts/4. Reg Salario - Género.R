@@ -220,6 +220,9 @@ ggplot() +
   scale_color_manual(values = c("Hombres" = "#1b9e77", "Mujeres" = "#d95f02")) +
   theme_minimal(base_size = 14)
 
+ggsave("perfil_edad_salario_genero.jpg", plot = last_plot(),
+       width = 8, height = 6, dpi = 300)
+
 
 
 save(bd_seleccionados, file = "bd_seleccionados.RData")
