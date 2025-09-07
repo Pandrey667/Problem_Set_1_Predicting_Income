@@ -98,3 +98,75 @@ library(gridExtra)
 grid.arrange(p2, p1, ncol = 2)  # 2 columnas, 1 fila
 # grid.arrange(p1, p2, nrow = 2)  # 2 filas, 1 columna
 
+# (b)
+# install.packages("Metrics")
+library(Metrics)   # para RMSE
+library(caret)
+
+# Asegurar mismos niveles en factores categóricos
+categoricas <- c("female", "formal", "nivel_educativo", "relab", "sizeFirm")
+
+for (var in categoricas) {
+  testing[[var]] <- factor(testing[[var]], levels = levels(training[[var]]))
+}
+
+
+# Modelo 1: edad–salario simple
+modelo_edadsal <- lm(ln_wage ~ age + agesqr, data = training)
+pred1 <- predict(modelo_edadsal, newdata = testing)
+rmse1 <- RMSE(pred = pred1, obs = testing$ln_wage)
+
+# Modelo 2: edad–salario con controles
+modelo_edadsal2 <- lm(
+  ln_wage ~ age + agesqr + totalHoursWorked + female + formal + nivel_educativo + relab + sizeFirm,
+  data = training
+)
+pred2 <- predict(modelo_edadsal2, newdata = testing)
+rmse2 <- RMSE(pred2, testing$ln_wage)
+
+
+sum(is.na(pred2))
+sum(is.na(testing$ln_wage))
+valid_idx <- !is.na(pred2)
+rmse2 <- RMSE(pred2[valid_idx], testing$ln_wage[valid_idx])
+rmse2
+
+# Modelo 3: brecha de género simple
+modelo_gen <- lm(ln_wage ~ female, data = training)
+pred3 <- predict(modelo_gen, newdata = testing)
+rmse3 <- RMSE(pred3, testing$ln_wage)
+
+# Modelo 4: brecha de género con controles
+modelo_gen2 <- lm(
+  ln_wage ~ female + nivel_educativo + formal + oficio + relab +
+    totalHoursWorked + sizeFirm + age + agesqr + microEmpresa,
+  data = training
+)
+pred4 <- predict(modelo_gen2, newdata = testing)
+rmse4 <- RMSE(pred4, testing$ln_wage)
+
+valid_idx <- !is.na(pred4)
+rmse4 <- RMSE(pred4[valid_idx], testing$ln_wage[valid_idx])
+rmse4
+
+# Especificación 5: polinomio cúbico en la edad
+form_5 <- ln_wage ~ poly(age, 3, raw = TRUE) + female + formal
+modelo5 <- lm(form_5, data = training)
+pred5 <- predict(modelo5, testing)
+rmse5 <- RMSE(pred5, testing$ln_wage)
+
+# Especificación 6: interacciones edad*género
+form_6 <- ln_wage ~ age * female + agesqr + formal + totalHoursWorked
+modelo6 <- lm(form_6, data = training)
+pred6 <- predict(modelo6, testing)
+rmse6 <- RMSE(pred6, testing$ln_wage)
+
+# Especificación 7: interacciones edad*nivel educativo
+form_7 <- ln_wage ~ poly(age, 2, raw=TRUE) * nivel_educativo + female
+modelo7 <- lm(form_7, data = training)
+pred7 <- predict(modelo7, testing)
+rmse7 <- RMSE(pred7, testing$ln_wage)
+
+valid_idx <- !is.na(pred7)
+rmse7 <- RMSE(pred7[valid_idx], testing$ln_wage[valid_idx])
+rmse7
