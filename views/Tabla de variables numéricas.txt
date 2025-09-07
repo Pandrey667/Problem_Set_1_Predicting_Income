@@ -1,0 +1,18 @@
+\begin{longtblr}[
+  caption = {\textbf{Edad}, \textbf{salario por hora}  y \textbf{logaritmo natural del salario por hora}},
+  note{} = {Fuente: Gran Encuesta Integrada de Hogares (GEIH) 2018. Tabla de elaboración propia.}
+]{
+  colspec = {Q[l]Q[c]Q[c]Q[c]Q[c]Q[c]Q[c]Q[c]},
+  rowhead = 1,
+  hlines,
+}
+\toprule
+Variable & N & Media & SD & Mín & Mediana & Máx & Asimetría & Curtosis \\ \midrule %% TinyTableHeader
+age & \num{14731} & 38.9 & 13.2 & 18.0 & 37.0 & 91.0 & 0.48 & 2.44 \\
+ln\_wage & \num{14731} & 8.7 & 0.8 & 5.2 & 8.6 & 12.7 & 0.58 & 4.84 \\
+salario\_hora & \num{14731} & 9189.3 & 14361 & 178.6 & 5208 & 312500 & 7.78 & 99.7 \\
+totalHoursWorked & \num{14731} & 47.6 & 15.1 & 1.0 & 48.0 & 130.0 & 0.17 & 5.52 \\
+\bottomrule
+\end{longtblr}
+
+
