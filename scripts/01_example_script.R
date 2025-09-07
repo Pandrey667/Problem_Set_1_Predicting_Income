@@ -170,3 +170,70 @@ rmse7 <- RMSE(pred7, testing$ln_wage)
 valid_idx <- !is.na(pred7)
 rmse7 <- RMSE(pred7[valid_idx], testing$ln_wage[valid_idx])
 rmse7
+
+
+# Especificación 8: modelo con splines en edad
+library(splines)
+library(caret)
+# install.packages("elasticnet")
+library(lars)
+library(elasticnet)
+library(Metrics)
+
+
+form_8 <- ln_wage ~ bs(age, df=5) + female + formal + nivel_educativo
+modelo8 <- lm(form_8, data = training)
+pred8 <- predict(modelo8, testing)
+rmse8 <- RMSE(pred8, testing$ln_wage)
+
+valid_idx <- !is.na(pred8)
+rmse8 <- RMSE(pred8[valid_idx], testing$ln_wage[valid_idx])
+rmse8
+
+
+# Especificación 9: modelo regularizado (ridge con caret)
+form_9 <- ln_wage ~ bs(age, df=10) + female + formal + nivel_educativo
+modelo9 <- lm(form_9, data = training)
+pred9 <- predict(modelo9, testing)
+rmse9 <- RMSE(pred9, testing$ln_wage)
+
+valid_idx <- !is.na(pred9)
+rmse9 <- RMSE(pred9[valid_idx], testing$ln_wage[valid_idx])
+rmse9
+
+# Comparar resultados: Guardamos todo en una tabla para visualizar:
+
+rmse_results <- data.frame(
+  Modelo = c("Edad–Salario simple",
+             "Edad–Salario + controles",
+             "Género simple",
+             "Género + controles",
+             "Polinomio cúbico edad",
+             "Edad*Género",
+             "Edad*Nivel educativo",
+             "Splines en edad",
+             "Ridge regularizado"),
+  RMSE = c(rmse1, rmse2, rmse3, rmse4,
+           rmse5, rmse6, rmse7, rmse8, rmse9)
+)
+
+print(rmse_results)
+
+library(ggplot2)
+
+ggplot(rmse_results, aes(x = reorder(Modelo, RMSE), y = RMSE)) +
+  geom_col(aes(fill = RMSE), width = 0.6, show.legend = FALSE) +
+  geom_text(aes(label = round(RMSE, 3)), 
+            hjust = -0.2, color = "black", size = 4, fontface = "bold") +
+  coord_flip() +
+  labs(title = "Comparación del RMSE en distintos modelos",
+       x = NULL, y = "RMSE") +
+  scale_fill_gradient(low = "#6BAED6", high = "#08306B") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5, color = "#08306B"),
+    axis.text.y = element_text(face = "bold", color = "#333333"),
+    axis.text.x = element_text(color = "#333333"),
+    panel.grid.major.y = element_blank()
+  )
