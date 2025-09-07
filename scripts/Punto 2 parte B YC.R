@@ -116,6 +116,30 @@ estratos_perc %>%
   labs(caption = "Fuente: Gran Encuesta Integrada de Hogares (GEIH) 2018. Gráfica de elaboración propia.")
 
 
+test_4 <- df_2 %>% 
+  ggplot(., aes(x = totalHoursWorked )) + 
+  geom_bar(stat = "bin", 
+           fill = "royalblue", 
+           color = "black") +
+  ylab('Frecuencia') + 
+  xlab('Horas trabajadas') + 
+  scale_x_continuous(breaks = seq(0, 130, 10)) + 
+  scale_y_continuous(breaks = seq(0, 10000, 2000)) + 
+  ggtitle('Horas de trabajo semanal') + 
+  theme(plot.title = element_text(hjust = 0.5, 
+                                  size = 17), 
+        plot.caption = element_text(hjust = 0)) 
+#labs(caption = "Fuente: Gran Encuesta Integrada de Hogares (GEIH) 2018. Gráfica de elaboración propia.")
+
+### Matriz de gráficos del salario por hora
+independ_graph1 <- grid.arrange(test_3, test_4, ncol = 2)
+
+### Exportamos la matriz de gráficos del salario
+ggsave('independientes_1.jpeg', plot = independ_graph1, 
+       width = 10, height = 6, dpi = 300)
+
+
+
 
 
 
