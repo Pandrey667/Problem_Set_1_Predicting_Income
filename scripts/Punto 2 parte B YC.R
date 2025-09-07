@@ -81,5 +81,42 @@ salarios_graph <- grid.arrange(test_1, test_2, ncol = 2)
 ggsave('salarios.jpeg', plot = salarios_graph, 
        width = 10, height = 6, dpi = 300)
 
+### Diagrama de barras de la edad de las personas encuestadas
+test_3 <- df_2 %>% 
+  ggplot(aes(x = age)) + 
+  geom_histogram(binwidth = 2, 
+                 fill = "#00B2EE", 
+                 color = "black") +
+  ylab("Frecuencia") + 
+  xlab("Edad (años)") + 
+  ggtitle("Edad de las personas encuestadas") + 
+  scale_x_continuous(breaks = seq(18, 91, 3)) +
+  theme(plot.title = element_text(hjust = 0.5, size = 17),
+        plot.caption = element_text(hjust = 0))
+#labs(caption = "Fuente: Gran Encuesta Integrada de Hogares (GEIH) 2018. Gráfica de elaboración propia.")
+
+
+estratos_perc %>% 
+  ggplot(., aes(x = estrato1, 
+                y = n)) + 
+  geom_col(stat = "count", 
+           fill = "firebrick", 
+           color = "black") + 
+  geom_text(aes(label = scales::label_percent(accuracy = 0.1)(percentage)),
+            vjust = -0.5, size = 6) +
+  ylab('Frecuencia') + 
+  xlab('Estratos socioeconómicos') + 
+  scale_y_continuous(breaks = seq(0, 6500, 1000)) + 
+  ggtitle('Porcentaje de estratos en la GEIH 2018') + 
+  theme(plot.title = element_text(hjust = 0.5, 
+                                  size = 17), 
+        plot.caption = element_text(hjust = 0), 
+        axis.text.x = element_text(size = 12), 
+        axis.text.y = element_text(size = 11)) +
+  labs(caption = "Fuente: Gran Encuesta Integrada de Hogares (GEIH) 2018. Gráfica de elaboración propia.")
+
+
+
+
 
 
