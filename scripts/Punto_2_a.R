@@ -92,3 +92,36 @@ variables_num <- df_2 %>%
   select(salario_hora, 
          ln_wage, age, 
          totalHoursWorked)
+
+### Tabla de estadísticas básicas (sin asimetría y curtosis)
+descr <- datasummary_skim(variables_num, 
+                          type = "numeric", 
+                          output = "data.frame") %>%
+  select(-`Histogram`)
+
+### Rebombramos la primera columna de la tabla descr como Variable
+colnames(descr)[1] <- "Variable"
+
+### Calculamos el número de observaciones (N)
+n_obs <- sapply(variables_num, function(x) sum(!is.na(x)))
+
+### Eliminar columna Unique y reordenamos para que N sea la primera columna
+descr <- descr %>%
+  select(-Unique) %>%
+  mutate(N = n_obs[match(Variable, names(n_obs))]) %>%
+  relocate(N, .after = Variable)
+
+### Calculamos el coeficiente de asimetría y la curtosis
+extra <- data.frame(
+  Variable  = names(variables_num),
+  Asimetría = apply(variables_num, 2, skewness, na.rm = TRUE),
+  Curtosis  = apply(variables_num, 2, kurtosis, na.rm = TRUE)
+)
+
+### Unimos las tablas que contienen las medidas de tendencia central y las de forma
+final <- merge(descr, extra, by = "Variable")
+
+# Exportamos la tabla de las variables numéricas en formato LaTeX 
+datasummary_df(final,
+               output = "latex",
+               title = "Estadísticas descriptivas con asimetría y curtosis")
