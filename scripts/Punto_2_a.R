@@ -125,3 +125,28 @@ final <- merge(descr, extra, by = "Variable")
 datasummary_df(final,
                output = "latex",
                title = "Estadísticas descriptivas con asimetría y curtosis")
+
+
+### Recategorizamos la variable dicotómica de género (0 )
+df_2$sex <- factor(df_2$sex, 
+                   levels = c(0, 1), 
+                   labels = c('Hombre', 
+                              'Mujer'))
+
+### Recategorizamos la variable dicotómica de trabajo formal
+df_2$formal <- factor(df_2$formal, 
+                      levels = c(0, 1), 
+                      labels = c('informal', 
+                                 'formal'))
+
+### Recategorizamos la variable de niveles educativos
+df_2$maxEducLevel <- factor(
+  df_2$maxEducLevel,
+  levels = c(1, 2, 3, 4, 5, 6, 7),
+  labels = c("Ninguno",
+             "Preescolar",
+             "Básica primaria (1º - 5º)",
+             "Básica secundaria (6º - 9º)",
+             "Media (10º - 13º)",
+             "Superior o universitaria",
+             "No sabe, no informa"))
