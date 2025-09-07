@@ -10,13 +10,13 @@ set.seed(10101)  # Semilla para reproducibilidad
 
 # Crear partición: 70% entrenamiento, 30% prueba
 inTrain <- createDataPartition(
-  y = db$totalHoursWorked,  # se usa outcome para balance
+  y = bd_seleccionados$totalHoursWorked,  # se usa outcome para balance
   p = 0.70,
   list = FALSE
 )
 
-training <- db[inTrain, ]
-testing  <- db[-inTrain, ]
+training <- bd_seleccionados[inTrain, ]
+testing  <- bd_seleccionados[-inTrain, ]
 
 # Aseguramos que no haya NA/NaN/Inf en la variable dependiente
 training <- training |> filter(is.finite(ln_wage))
@@ -29,8 +29,8 @@ testing  <- testing  |> filter(is.finite(ln_wage))
 split_data <- data.frame(
   Split = factor(c("Training", "Testing")),
   Count = c(nrow(training), nrow(testing)),
-  Percentage = c(nrow(training)/nrow(db)*100,
-                 nrow(testing)/nrow(db)*100)
+  Percentage = c(nrow(training)/nrow(bd_seleccionados)*100,
+                 nrow(testing)/nrow(bd_seleccionados)*100)
 )
 
 # -------- Gráfico 1: Distribución Train-Test --------
@@ -74,7 +74,7 @@ p1 <- ggplot(split_data, aes(x = Split, y = Count, fill = Split)) +
 partition_process <- data.frame(
   Conjunto = factor(c("Base completa", "Training", "Testing"),
                     levels = c("Base completa", "Training", "Testing")),
-  Observaciones = c(nrow(db), nrow(training), nrow(testing))
+  Observaciones = c(nrow(bd_seleccionados), nrow(training), nrow(testing))
 )
 
 p2 <- ggplot(partition_process, aes(x = Conjunto, y = Observaciones, fill = Conjunto)) +
