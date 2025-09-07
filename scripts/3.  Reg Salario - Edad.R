@@ -252,7 +252,7 @@ coeficientes <- function(bd_seleccionados, indices) {
 }
 
 #Corremos el bootstrap y obtenemos los indices y los erroees estandar
-bootstrap <- boot(data = bd_seleccionados, statistic = coeficientes, R = 1000)
+bootstrap <- boot(data = bd_seleccionados, statistic = coeficientes, R = 10000)
 coeficientesboostrap <- bootstrap$t0
 errores <- apply(bootstrap$t,2,sd)
 
@@ -299,6 +299,7 @@ ggsave("perfil_edad_salario_bootstrap.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
 
 
-save(bd_seleccionados, file = "bd_seleccionados.RData")
-
+ruta_bd <- file.path(Directorio, "bd_seleccionados.RData")
+save(bd_seleccionados, file = ruta_bd)
+message("Guardado en: ", normalizePath(ruta_bd, winslash = "/"))
 

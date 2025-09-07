@@ -105,23 +105,25 @@ stargazer(regbrecha,
 
 # Comparamos nuestros tres modelos 
 
-stargazer(reggenero, reggenero2, regbrecha,
-          title = "Comparación de modelos de brecha salarial",
-          label = "tab:brecha_genero_modelos",
-          dep.var.labels = c("Log salario",
-                             "Log salario (con controles)",
-                             "Residuales del salario"),
-          column.labels = c("Sin controles", "Con controles", "FWL"),
-          column.separate = c(1,1,1),
-          keep = c("^Mujer$", "^femaleMujer$", "^res_mujer$"),
-          covariate.labels = c("Mujer"),
-          keep.stat = c("n","rsq","adj.rsq"),
-          omit.stat = c("f","ser","ll","aic","bic"),
-          digits = 3,
-          align = TRUE,
-          no.space = TRUE,
-          header = FALSE,
-          type = "latex"
+stargazer(
+  reggenero, reggenero2, regbrecha,
+  type   = "latex",
+  out    = file.path(Directorio, "comparacionmodelosfemale.tex"),
+  title  = "Comparación de modelos de brecha salarial",
+  label  = "tab:brecha_genero_modelos",
+  column.labels  = c("Sin controles", "Con controles", "FWL"),
+  keep = c("^Mujer$", "^femaleMujer$", "^res_mujer$", "^female$"),
+  covariate.labels = c("Mujer"),
+  keep.stat  = c("n","rsq","adj.rsq"),
+  omit.stat  = c("f","ser","ll","aic","bic"),
+  digits = 3,
+  align  = TRUE,
+  no.space = TRUE,
+  header  = FALSE,
+  add.lines = list(
+    c("Variable dependiente", 
+      "Log salario", "Log salario (con controles)", "Residuales del salario")
+  )
 )
 
 
@@ -236,6 +238,6 @@ ggsave("perfil_edad_salario_genero.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
 
 
-save(bd_seleccionados, file = "bd_seleccionados.RData")
-
-
+ruta_bd <- file.path(Directorio, "bd_seleccionados.RData")
+save(bd_seleccionados, file = ruta_bd)
+message("Guardado en: ", normalizePath(ruta_bd, winslash = "/"))
