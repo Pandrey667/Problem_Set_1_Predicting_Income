@@ -237,3 +237,63 @@ ggplot(rmse_results, aes(x = reorder(Modelo, RMSE), y = RMSE)) +
     axis.text.x = element_text(color = "#333333"),
     panel.grid.major.y = element_blank()
   )
+# ================================
+# Punto (c): Análisis de resultados
+# ================================
+
+library(ggplot2)
+library(dplyr)
+
+# 1. Identificar el modelo con menor RMSE
+best_model_idx <- which.min(rmse_results$RMSE)
+best_model_name <- rmse_results$Modelo[best_model_idx]
+best_rmse <- rmse_results$RMSE[best_model_idx]
+
+cat("El mejor modelo es:", best_model_name, 
+    "con un RMSE de", round(best_rmse, 4), "\n")
+
+# 2. Seleccionar predicciones y errores según el modelo ganador
+# (ajustar nombres de objetos predX según tu script: pred1, pred2, ..., pred9)
+
+pred_list <- list(pred1, pred2, pred3, pred4, pred5, pred6, pred7, pred8, pred9)
+names(pred_list) <- rmse_results$Modelo
+
+best_pred <- pred_list[[best_model_name]]
+
+# Calcular errores de predicción
+errors <- testing$ln_wage - best_pred
+
+error_df <- data.frame(
+  observed = testing$ln_wage,
+  predicted = best_pred,
+  error = errors
+)
+
+# 3. Graficar distribución de errores
+ggplot(error_df, aes(x = error)) +
+  geom_histogram(aes(y = ..density..), bins = 30, 
+                 fill = "#1f77b4", color = "white", alpha = 0.7) +
+  geom_density(color = "#d62728", size = 1.2, linetype = "solid") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1) +
+  labs(
+    title = paste("Distribución de errores -", best_model_name),
+    x = "Error (observado - predicho)",
+    y = "Densidad"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5, color = "#333333"),
+    axis.text = element_text(face = "bold", color = "#333333")
+  )
+
+# 4. Identificar outliers (cola superior/inferior del IQR)
+Q1 <- quantile(error_df$error, 0.25, na.rm = TRUE)
+Q3 <- quantile(error_df$error, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+
+outliers <- error_df %>%
+  filter(error < (Q1 - 1.5 * IQR) | error > (Q3 + 1.5 * IQR))
+
+cat("Número de outliers detectados:", nrow(outliers), "\n")
+head(outliers, 10)  # mostrar los primeros 10
+
