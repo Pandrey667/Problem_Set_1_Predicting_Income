@@ -286,17 +286,29 @@ df <- df %>% mutate(salario_estimado = exp(salario_estimado),
                     limite_superior = exp(limite_superior))
 
 
-# Grafico 
+#Calculamos la edad pico en este caso
+edad_pico_boot <- -coeficientesboostrap[2] / (2 * coeficientesboostrap[3])
 
+#Extraemos la estimación de salario
+punto_max <- df[which.max(df$salario_estimado), ]
+
+# Gráfico con la etiqueta
 ggplot(df, aes(x = edad, y = salario_estimado)) +
-  geom_ribbon(aes(ymin = limite_inferior, ymax = limite_superior), alpha = 0.25) +
+  geom_ribbon(aes(ymin = limite_inferior, ymax = limite_superior), alpha = 0.25, fill = "grey") +
   geom_line(linewidth = 1, color = "green") +
-  labs(title = "Perfil edad–salario con  bootstrap",
-       x = "Edad", y = "Salario en $ ") +
+  geom_vline(xintercept = punto_max$edad, linetype = "dashed", color = "black") +
+  geom_point(data = punto_max, aes(x = edad, y = salario_estimado), color = "black", size = 3) +
+  geom_text(aes(x = punto_max$edad, y = punto_max$salario_estimado,
+                label = paste0("Pico ≈ ", round(punto_max$edad, 1), " años\n$",
+                               format(round(punto_max$salario_estimado, 0), big.mark = ","))),
+            vjust = -1, color = "black", size = 3.2, fontface = "plain") +
+  labs(title = "Perfil edad–salario con bootstrap",
+       x = "Edad", y = "Salario en $") +
   theme_classic()
 
-ggsave("perfil_edad_salario_bootstrap.jpg", plot = last_plot(),
+ggsave("perfil_edad_salario_bootstrap_con_pico.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
+
 
 
 ruta_bd <- file.path(Directorio, "bd_seleccionados.RData")
