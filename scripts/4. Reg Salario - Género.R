@@ -1,6 +1,11 @@
 ## Este scrip desarrolla el punto 4 The gender earnings GAP.
 
-load("C:\\Users\\investigacion\\Desktop\\BD ML\\Taller 1 BDML\\bd_seleccionados.RData")
+Directorio <- "C:/Users/investigacion/Desktop/BD ML/Taller 1 BDML/PS_Repo/stores"
+
+setwd(Directorio)
+load("bd_seleccionados.RData")
+
+
 
 # REGRESIÓN SALARIO - FEMALE 
 
@@ -51,7 +56,6 @@ stargazer(reggenero2,
           covariate.labels = c("Mujer", "Nivel educativo", "Formalidad", 
                                "Ocupación (oficio)", "Relación laboral", 
                                "Horas totales de trabajo ", "Tamaño empresa",
-                               "Estrato socioeconómico", "Jefe de hogar", 
                                "Edad", "Edad al cuadrado",
                                "Microempresa"),
           keep.stat = c("n", "rsq", "adj.rsq"),
@@ -100,16 +104,25 @@ stargazer(regbrecha,
 
 
 # Comparamos nuestros tres modelos 
+
 stargazer(reggenero, reggenero2, regbrecha,
           title = "Comparación de modelos de brecha salarial",
-          dep.var.labels = c("Logaritmo del salario",
-                             "Logaritmo del salario (con controles)",
+          label = "tab:brecha_genero_modelos",
+          dep.var.labels = c("Log salario",
+                             "Log salario (con controles)",
                              "Residuales del salario"),
-          covariate.labels = c("Mujer", "Controles", "Residuales de mujer"),
-          keep.stat = c("n", "rsq", "adj.rsq"),
+          column.labels = c("Sin controles", "Con controles", "FWL"),
+          column.separate = c(1,1,1),
+          keep = c("^Mujer$", "^femaleMujer$", "^res_mujer$"),
+          covariate.labels = c("Mujer"),
+          keep.stat = c("n","rsq","adj.rsq"),
+          omit.stat = c("f","ser","ll","aic","bic"),
           digits = 3,
           align = TRUE,
-          type = "text")
+          no.space = TRUE,
+          header = FALSE,
+          type = "latex"
+)
 
 
 ## Usamos FWL  con bootstrap 
@@ -132,12 +145,8 @@ btrap <- function(data, index){
   coef(lm(res_salario ~ res_mujer, data = d))[2]
 }
 
-
-btrap(bd_seleccionados, 1:nrow(bd_seleccionados))
-
-
 set.seed(2025)
-boot(bd_seleccionados, btrap, R = 1000)
+boot(bd_seleccionados, btrap, R = 10000)
 
 
 
@@ -225,7 +234,6 @@ ggplot() +
 
 ggsave("perfil_edad_salario_genero.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
-
 
 
 save(bd_seleccionados, file = "bd_seleccionados.RData")
