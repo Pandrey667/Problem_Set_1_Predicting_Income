@@ -139,7 +139,82 @@ ggsave('independientes_1.jpeg', plot = independ_graph1,
        width = 10, height = 6, dpi = 300)
 
 
+### Generamos una tabla de frecuencia añadiendo los porcentajes de cada categoría
+genero <- df_2 %>% 
+  group_by(sex) %>% 
+  summarize(freq = n()) %>% 
+  mutate(Pct = round(freq / sum(freq), 2))
 
+
+### Diagrama de barras con la variable sex de la GEIH
+cat_graph_1 <- genero %>% 
+  ggplot(aes(x = factor(sex), 
+             y = freq, 
+             fill = factor(sex))) +
+  geom_col(color = "black") + 
+  geom_text(aes(label = scales::label_percent(accuracy = 0.1)(Pct)),
+            vjust = -0.5, size = 6) +
+  xlab("Sexo") +  ylab("Frecuencia") + 
+  ggtitle("Distribución por sexo") +
+  scale_fill_manual(values = c("dodgerblue1", "firebrick2"),
+                    labels = c("Mujer", "Hombre")) +
+  theme(plot.title = element_text(hjust = 0.5, 
+                                  size = 17), 
+        legend.title = element_blank(), 
+        axis.text.x = element_text(size = 14), 
+        axis.title.x = element_text(size = 15), 
+        axis.title.y = element_text(size = 15), 
+        legend.text = element_text(size = 12))
+
+
+### Recategorizamos la variable de nivel máximo alcanzado
+df_2$maxEducLevel <- factor(
+  df_2$maxEducLevel,
+  levels = c(1, 2, 3, 4, 5, 6, 7),
+  labels = c("Ninguno",
+             "Preescolar",
+             "Básica primaria (1º - 5º)",
+             "Básica secundaria (6º - 9º)",
+             "Media (10º - 13º)",
+             "Superior o universitaria",
+             "No sabe, no informa"))
+
+### Eliminamos el único dato atípico que hay en la variable del nivel educativo
+df_2 <- df_2 %>% 
+  filter(!is.na(maxEducLevel))
+
+### Creamos un data frame con el porcentaje de las categorías del nivel educativo
+nivel_educ <- df_2 %>%
+  count(maxEducLevel) %>%
+  mutate(percentage = n / sum(n))
+
+
+### Diagrama de barras para el máximo nivel educativo alcanzado por los individuos
+cat_graph_2 <- nivel_educ %>% 
+  ggplot(aes(x = maxEducLevel, 
+             y = n, 
+             fill = maxEducLevel)) + 
+  geom_col(color = "black") + 
+  geom_text(aes(label = scales::label_percent(accuracy = 0.1)(percentage)),
+            vjust = -0.5, size = 6) +
+  ylab("Frecuencia") + 
+  xlab("Nivel educativo") + 
+  scale_y_continuous(breaks = seq(0, 8000, 1000)) + 
+  scale_fill_viridis(discrete = TRUE, option = "D") + 
+  ggtitle("Máximo nivel educativo\nalcanzado por los individuos") + 
+  theme(plot.title = element_text(hjust = 0.5, size = 17), 
+        plot.caption = element_text(hjust = 0), 
+        axis.text.x = element_text(size = 12, angle = 20, hjust = 1), 
+        axis.text.y = element_text(size = 11))
+
+### Guardamos las gráficas del sexo y del nivel educativo en una matriz de gráficos
+independ_graph2 <- grid.arrange(cat_graph_1, 
+                                cat_graph_2, 
+                                ncol = 2)
+
+### Exportamos la matriz de gráficos del salario
+ggsave('independientes_2.jpeg', plot = independ_graph2, 
+       width = 15, height = 8, dpi = 300)
 
 
 
