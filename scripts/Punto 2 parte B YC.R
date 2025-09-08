@@ -95,27 +95,6 @@ test_3 <- df_2 %>%
         plot.caption = element_text(hjust = 0))
 #labs(caption = "Fuente: Gran Encuesta Integrada de Hogares (GEIH) 2018. Gráfica de elaboración propia.")
 
-
-estratos_perc %>% 
-  ggplot(., aes(x = estrato1, 
-                y = n)) + 
-  geom_col(stat = "count", 
-           fill = "firebrick", 
-           color = "black") + 
-  geom_text(aes(label = scales::label_percent(accuracy = 0.1)(percentage)),
-            vjust = -0.5, size = 6) +
-  ylab('Frecuencia') + 
-  xlab('Estratos socioeconómicos') + 
-  scale_y_continuous(breaks = seq(0, 6500, 1000)) + 
-  ggtitle('Porcentaje de estratos en la GEIH 2018') + 
-  theme(plot.title = element_text(hjust = 0.5, 
-                                  size = 17), 
-        plot.caption = element_text(hjust = 0), 
-        axis.text.x = element_text(size = 12), 
-        axis.text.y = element_text(size = 11)) +
-  labs(caption = "Fuente: Gran Encuesta Integrada de Hogares (GEIH) 2018. Gráfica de elaboración propia.")
-
-
 test_4 <- df_2 %>% 
   ggplot(., aes(x = totalHoursWorked )) + 
   geom_bar(stat = "bin", 
