@@ -145,19 +145,6 @@ cat_graph_1 <- genero %>%
         axis.title.y = element_text(size = 15), 
         legend.text = element_text(size = 12))
 
-
-### Recategorizamos la variable de nivel máximo alcanzado
-df_2$maxEducLevel <- factor(
-  df_2$maxEducLevel,
-  levels = c(1, 2, 3, 4, 5, 6, 7),
-  labels = c("Ninguno",
-             "Preescolar",
-             "Básica primaria (1º - 5º)",
-             "Básica secundaria (6º - 9º)",
-             "Media (10º - 13º)",
-             "Superior o universitaria",
-             "No sabe, no informa"))
-
 ### Eliminamos el único dato atípico que hay en la variable del nivel educativo
 df_2 <- df_2 %>% 
   filter(!is.na(maxEducLevel))
