@@ -13,7 +13,7 @@ get_mode <- function(x) {
 
 ### Calculamos N, Moda, frecuencia y proporción de la moda 
 cat_summary <- df_2 %>%
-  select(sex, formal, maxEducLevel, estrato1) %>%
+  select(female, formal, maxEducLevel, estrato1) %>%
   summarise(across(
     everything(),
     list(
