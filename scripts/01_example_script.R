@@ -1,26 +1,14 @@
-# ============================================
-# 5. Predicting wages
-# (a) Train-Test Split
-# ============================================
-
-#install.packages("caret")
-library(caret)
-
 set.seed(10101)  # Semilla para reproducibilidad
 
 # Crear partición: 70% entrenamiento, 30% prueba
 inTrain <- createDataPartition(
-  y = bd_seleccionados$totalHoursWorked,  # se usa outcome para balance
+  y = bd_seleccionados$relab,   # balancea según el factor
   p = 0.70,
   list = FALSE
 )
-
 training <- bd_seleccionados[inTrain, ]
 testing  <- bd_seleccionados[-inTrain, ]
 
-# Aseguramos que no haya NA/NaN/Inf en la variable dependiente
-training <- training |> filter(is.finite(ln_wage))
-testing  <- testing  |> filter(is.finite(ln_wage))
 
 
 # -------------------------
@@ -110,7 +98,6 @@ for (var in categoricas) {
   testing[[var]] <- factor(testing[[var]], levels = levels(training[[var]]))
 }
 
-
 # Modelo 1: edad–salario simple
 modelo_edadsal <- lm(ln_wage ~ age + agesqr, data = training)
 pred1 <- predict(modelo_edadsal, newdata = testing)
@@ -124,6 +111,7 @@ modelo_edadsal2 <- lm(
 pred2 <- predict(modelo_edadsal2, newdata = testing)
 rmse2 <- RMSE(pred2, testing$ln_wage)
 
+table(testing$relab)
 
 sum(is.na(pred2))
 sum(is.na(testing$ln_wage))
