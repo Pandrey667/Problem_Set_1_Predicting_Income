@@ -1,0 +1,15 @@
+\begin{longtblr}[
+  caption = {Estadísticas descriptivas de variables categóricas},
+  note{} = {Fuente: Gran Encuesta Integrada de Hogares (GEIH) 2018. Tabla de elaboración propia.}
+]{
+colspec={Q[]Q[]Q[]Q[]Q[]Q[]},
+column{1-6}={halign=l},
+}
+\toprule
+Variable & N & \# Categorías & Moda & Frecuencia Moda & Prop Moda \\ \midrule %% TinyTableHeader
+sex & \num{14731} & \num{2} & Mujer & \num{7765} & 53\% \\
+formal & \num{14731} & \num{2} & formal & \num{8889} & 60\% \\
+maxEducLevel & \num{14731} & \num{6} & No sabe, no informa & \num{6100} & 41\% \\
+estrato1 & \num{14731} & \num{6} & Estrato 2 & \num{6311} & 43\% \\
+\bottomrule
+\end{longtblr}
