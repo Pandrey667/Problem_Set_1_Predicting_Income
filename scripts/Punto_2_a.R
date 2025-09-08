@@ -12,6 +12,16 @@ library(gridExtra)     ## Matriz de gráficas en ggplot2
 library(viridis)       ## Paleta de colores para gráficas
 library(stargazer)     ## tablas en stargazer
 library(boot)
+library(caret)
+library(patchwork)
+library(Metrics)   # para RMSE
+library(splines)
+library(caret)
+# install.packages("elasticnet")
+library(lars)
+library(elasticnet)
+library(knitr)
+
 
 ### URL de la página de GitHub del doctor Ignacio Sarmiento
 url_base <- "https://ignaciomsarmiento.github.io/GEIH2018_sample/pages/"
@@ -140,4 +150,16 @@ df_2$formal <- factor(df_2$formal,
                       levels = c(0, 1), 
                       labels = c('informal', 
                                  'formal'))
+
+### Recategorizamos la variable de niveles educativos
+df_2$maxEducLevel <- factor(
+  df_2$maxEducLevel,
+  levels = c(1, 2, 3, 4, 5, 6, 7),
+  labels = c("Ninguno",
+             "Preescolar",
+             "Básica primaria (1º - 5º)",
+             "Básica secundaria (6º - 9º)",
+             "Media (10º - 13º)",
+             "Superior o universitaria",
+             "No sabe, no informa"))
 
