@@ -140,3 +140,4 @@ df_2$formal <- factor(df_2$formal,
                       levels = c(0, 1), 
                       labels = c('informal', 
                                  'formal'))
+
