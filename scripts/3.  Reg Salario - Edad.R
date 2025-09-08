@@ -1,8 +1,5 @@
-## Este scrip desarrolla el punto 3 Edad Salario
+## Este scrip desarrolla el punto 3 Age - Wage.
 
-# intalación de paquetes 
-library(tidyverse)
-library(boot)
 
 #Renombramos la base de datos
 db <- df_2
@@ -14,6 +11,7 @@ colnames(db)
 # Preparamos variables para regresión ( Log salario y  edad cuadrado junto a algunos controles)
 db <- db %>% mutate(ln_wage = log(ingreso_total))
 db <- db %>% mutate(agesqr = age^2)
+
 db <- db %>% rename(nivel_educativo = p6210)
 db$nivel_educativo <- factor(
   db$nivel_educativo,
@@ -29,6 +27,7 @@ db$nivel_educativo <- factor(
 
 
 db <- db %>% mutate(jefe_hogar = ifelse(p6050 == 1, 1, 0))
+
 db <- db %>%
   mutate(relab = factor(relab,
                         levels = 1:9,
@@ -58,7 +57,8 @@ db <- db %>%
 
 # Creamos una base de datos filtrada con nuestras variables de interes y eliminamos los NA de estas variables
 bd_seleccionados <- db %>% dplyr::select(
-  ln_wage, totalHoursWorked, female, formal, nivel_educativo, age, agesqr, estrato1, jefe_hogar, relab, sizeFirm
+  ln_wage, totalHoursWorked, female, formal, 
+  nivel_educativo, age, agesqr, estrato1, jefe_hogar, relab, sizeFirm
 )
 #Eliminar las observaciones que tienen ingresos laborales cero o NAs. 
 bd_seleccionados <- bd_seleccionados %>%
@@ -108,7 +108,7 @@ ggsave("perfil_edad_salario.jpg", plot = last_plot(),
 
 # REGRESIÓN 1 : SALARIO - EDAD  - CONTROLES
 
-
+table(bd_seleccionados$female)
 # Para mejorar nuestro modelo incluimos las variables de control 
 regedadsalario2 <- lm( ln_wage ~ age + agesqr + totalHoursWorked + female + formal + jefe_hogar + nivel_educativo + 
                          estrato1 + relab + sizeFirm,data = bd_seleccionados)
@@ -160,7 +160,7 @@ ggsave("Perfil_edad–salario_estimado_con_controles.jpg", plot = last_plot(),
 
 
 regedadsalario3 <- lm( ln_wage ~ age + agesqr + totalHoursWorked + female + formal +  nivel_educativo + 
-                        + relab + sizeFirm,data = bd_seleccionados)
+                         + relab + sizeFirm,data = bd_seleccionados)
 summary(regedadsalario3)
 stargazer(regedadsalario3,
           type = "text",
@@ -232,7 +232,7 @@ coeficientes <- function(bd_seleccionados, indices) {
   return(coef(fit))
 }
 
-#Corremos el bootstrap y obtenemos los indices y los erroees estandar
+#Corremos el bootstrap y obtenemos los indices y los errores estandar
 bootstrap <- boot(data = bd_seleccionados, statistic = coeficientes, R = 10000)
 coeficientesboostrap <- bootstrap$t0
 errores <- apply(bootstrap$t,2,sd)

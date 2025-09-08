@@ -102,7 +102,6 @@ stargazer(regbrecha,
 stargazer(
   reggenero, reggenero2, regbrecha,
   type   = "latex",
-  out    = file.path(Directorio, "comparacionmodelosfemale.tex"),
   title  = "Comparación de modelos de brecha salarial",
   label  = "tab:brecha_genero_modelos",
   column.labels  = c("Sin controles", "Con controles", "FWL"),
@@ -202,8 +201,8 @@ dfgrafico <- data.frame(
 
 
 etiquetas <- sprintf("Edad pico Hombres: %.1f (IC95%% %.1f–%.1f)\nEdad pico Mujeres: %.1f (IC95%% %.1f–%.1f)",
-                       picohombre, ci_h[1], ci_h[2],
-                       picomujer, ci_m[1], ci_m[2])
+                     picohombre, ci_h[1], ci_h[2],
+                     picomujer, ci_m[1], ci_m[2])
 
 ggplot() +
   geom_line(data = dfgrafico, aes(x = edad, y = hombres, color = "Hombres"), size = 1) +
@@ -230,4 +229,3 @@ ggplot() +
 
 ggsave("perfil_edad_salario_genero.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
-
