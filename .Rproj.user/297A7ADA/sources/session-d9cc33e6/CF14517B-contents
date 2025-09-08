@@ -1,0 +1,1311 @@
+### Limpiamos el ambiente de RStudio
+remove(list = ls())
+
+### Librerías usadas en el trabajo
+library(rvest)         ## Web-scrapping con R
+library(tidyverse)     ## Manipulación de datos
+library(purrr)         ## Loop para unificar el web-scrapping
+library(moments)       ## Cálculo del coeficiente de asimetría y la Kurtosis
+library(modelsummary)  ## Tablas de salida en formato LaTeX
+library(ggplot2)       ## Gramática de gráficos
+library(gridExtra)     ## Matriz de gráficas en ggplot2
+library(viridis)       ## Paleta de colores para gráficas
+library(stargazer)     ## tablas en stargazer
+library(boot)
+library(caret)
+library(patchwork)
+library(Metrics)   # para RMSE
+library(splines)
+library(caret)
+# install.packages("elasticnet")
+library(lars)
+library(elasticnet)
+library(knitr)
+
+
+### URL de la página de GitHub del doctor Ignacio Sarmiento
+url_base <- "https://ignaciomsarmiento.github.io/GEIH2018_sample/pages/"
+
+### Generamos las URLs de las páginas (del 1 al 10 por ejemplo)
+paginas <- paste0(url_base, "geih_page_", 1:10, ".html")
+
+### Función para extraer tablas en formato HTML de las páginas web 
+extraer_tabla <- function(url_tabla){
+  ## Leemos la página en formato HTML
+  pagina <- read_html(url_tabla)
+  ## Ubicamos los nodos que contienen las tablas HTML
+  nodo_tabla <- pagina %>% 
+    html_node("table")
+  ## Extraémos las tablas ubicadas en la página escrapeada
+  tabla <- nodo_tabla %>% 
+    html_table(fill = TRUE)
+  
+  ## Renombramos las columnas sin título con rl caracter col_1
+  names(tabla) <- if_else(
+    is.na(names(tabla)) | names(tabla) == "",
+    paste0("col_", seq_along(tabla)),
+    names(tabla)
+  )
+  
+  ## Convertimos la tabla con la entrada de la función (url_tabla)
+  tabla %>% mutate(origen = url_tabla)
+}
+
+### Aplicamos el loop map, del paquete purrr, a las 10 páginas web con las tablas  
+data_final <- map_dfr(paginas, extraer_tabla)
+
+### Estudiamos la clase del objeto data_final
+class(data_final)
+
+### Estudiamos las columnas del data frame 
+glimpse(data_final)
+
+### Filtramos, con la librería Tidyverse, data_final
+### Personas estrictamente mayores de 18 años
+### Personas ocupadas (ocu =1)
+
+df_1 <- data_final %>% 
+  filter(age >= 18 & ocu %in% 1)
+
+
+### Obtención de la variable salario por hora para cada individuo
+df_2 <- df_1 %>% 
+  ## Filtramos para obtener solo individuos tienen horas trabajadas
+  filter(totalHoursWorked != 0) %>% 
+  mutate(
+    ## Creamos la variable ingreso_total que está compuesta por la sumatoria
+    ## de impaes + isaes. Es decir: ingresos del trabajo principal + ingresos de un posible trabajo adicional
+    ingreso_total = ifelse(!is.na(impa), impa, impaes) +
+      ifelse(!is.na(isa),  isa,  isaes),
+    ## Obtenemos el total de horas trabajadas al mes (multiplicamos totalHoursWorked x 4)
+    horas_mes_Worked = totalHoursWorked * 4,
+    ## El salario por hora (salario_hora) es la división del ingreso total sobre las horas trabajas al mes (obtenidas con anterioridad) 
+    salario_hora = ingreso_total / horas_mes_Worked
+  )
+
+#################### Gráficos de las variables empleadas en las regresiones #############################################
+
+
+### Filtramos los NA y valores iguales a cero en 
+df_2 <- df_2 %>% 
+  filter(!is.na(salario_hora)) %>% 
+  filter(salario_hora != 0) %>% 
+  filter(!is.na(maxEducLevel))
+
+### Creamos la variable del logaritmo natural del salario por hora
+df_2$ln_wage <- log(df_2$salario_hora)
+
+### Convertimos df_2 a un objeto data frame
+df_2 <- as.data.frame(df_2)
+
+
+### Construímos el data frame variables_num con las variables numéricas
+variables_num <- df_2 %>% 
+  select(salario_hora, 
+         ln_wage, age, 
+         totalHoursWorked)
+
+### Tabla de estadísticas básicas (sin asimetría y curtosis)
+descr <- datasummary_skim(variables_num, 
+                          type = "numeric", 
+                          output = "data.frame") %>%
+  select(-`Histogram`)
+
+### Rebombramos la primera columna de la tabla descr como Variable
+colnames(descr)[1] <- "Variable"
+
+### Calculamos el número de observaciones (N)
+n_obs <- sapply(variables_num, function(x) sum(!is.na(x)))
+
+### Eliminar columna Unique y reordenamos para que N sea la primera columna
+descr <- descr %>%
+  select(-Unique) %>%
+  mutate(N = n_obs[match(Variable, names(n_obs))]) %>%
+  relocate(N, .after = Variable)
+
+### Calculamos el coeficiente de asimetría y la curtosis
+extra <- data.frame(
+  Variable  = names(variables_num),
+  Asimetría = apply(variables_num, 2, skewness, na.rm = TRUE),
+  Curtosis  = apply(variables_num, 2, kurtosis, na.rm = TRUE)
+)
+
+### Unimos las tablas que contienen las medidas de tendencia central y las de forma
+final <- merge(descr, extra, by = "Variable")
+
+# Exportamos la tabla de las variables numéricas en formato LaTeX 
+datasummary_df(final,
+               output = "latex",
+               title = "Estadísticas descriptivas con asimetría y curtosis")
+
+
+### Recategorizamos la variable dicotómica de género (0 )
+df_2 <- df_2 %>%  
+  mutate(female = factor(ifelse(sex == 0, 1, 0),
+                                     levels = c(0, 1),
+                                     labels = c("Hombre", "Mujer")))
+
+### Recategorizamos la variable dicotómica de trabajo formal
+df_2$formal <- factor(df_2$formal, 
+                      levels = c(0, 1), 
+                      labels = c('informal', 
+                                 'formal'))
+
+### Recategorizamos la variable de niveles educativos
+df_2$maxEducLevel <- factor(
+  df_2$maxEducLevel,
+  levels = c(1, 2, 3, 4, 5, 6, 7),
+  labels = c("Ninguno",
+             "Preescolar",
+             "Básica primaria (1º - 5º)",
+             "Básica secundaria (6º - 9º)",
+             "Media (10º - 13º)",
+             "Superior o universitaria",
+             "No sabe, no informa"))
+
+
+### Recategorizamos la variable de estratos socieconómicos
+df_2$estrato1 <- factor(df_2$estrato1,
+                        levels = 1:6,
+                        labels = c("Estrato 1","Estrato 2","Estrato 3",
+                                   "Estrato 4","Estrato 5","Estrato 6"))
+
+
+### Función para calcular la moda
+get_mode <- function(x) {
+  ux <- na.omit(unique(x))
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+### Calculamos N, Moda, frecuencia y proporción de la moda 
+cat_summary <- df_2 %>%
+  select(female, formal, maxEducLevel, estrato1) %>%
+  summarise(across(
+    everything(),
+    list(
+      ## Tamaño muestral de las variables
+      N = ~sum(!is.na(.x)),
+      ## Número de categorías por cada variable
+      Categories = ~length(unique(na.omit(.x))),
+      ## Moda de cada variable estudiada
+      Moda = ~get_mode(.x),
+      ## Frecuencia de la moda
+      FreqModa = ~max(table(.x, useNA = "no")),
+      ## Porporción de la moda
+      PropModa = ~max(prop.table(table(.x, useNA = "no")))
+    ),
+    .names = "{.col}_{.fn}"
+  )) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = c("Variable", ".value"),
+    names_sep = "_"
+  )
+
+
+### Exportamos la tabla de las variables categóricas en formato LaTeX
+datasummary_df(cat_summary,
+               output = "latex",
+               title = "Estadísticas descriptivas de variables categóricas")
+
+
+########################## Gráficas de las variables ########################################################################################################
+
+#### Histograma del salario por hora
+test_1 <- df_2 %>% 
+  ggplot(., aes(x = salario_hora)) + 
+  geom_histogram(bins = 15, 
+                 fill = "darkgoldenrod1", 
+                 color = "black") + 
+  ylab('Frecuencia') + 
+  xlab('Salario por hora (Pesos colombianos)') + 
+  ggtitle('Salarios por hora') + 
+  theme(plot.title = element_text(hjust = 0.5, 
+                                  size = 17), 
+        plot.caption = element_text(hjust = 0))
+#labs(caption = "Fuente: Gran Encuesta Integrada de Hogares (GEIH) 2018. Gráfica de elaboración propia.")
+
+
+#### Histograma del logaritmo natural del salario por hora
+test_2 <- df_2 %>%
+  ggplot(., aes(x = ln_wage)) + 
+  geom_histogram(bins = 15, 
+                 fill = "darkgoldenrod1", 
+                 color = "black") + 
+  ylab('Frecuencia') + 
+  xlab('Escala logarítmica') + 
+  ggtitle('Logaritmo natural del Salario por hora') + 
+  theme(plot.title = element_text(hjust = 0.5, 
+                                  size = 17), 
+        plot.caption = element_text(hjust = 0))
+#labs(caption = "Fuente: Gran Encuesta Integrada de Hogares (GEIH) 2018")
+
+### Matriz de gráficos del salario por hora
+salarios_graph <- grid.arrange(test_1, test_2, ncol = 2)
+
+### Exportamos la matriz de gráficos del salario
+ggsave('salarios.jpeg', plot = salarios_graph, 
+       width = 10, height = 6, dpi = 300)
+
+### Diagrama de barras de la edad de las personas encuestadas
+test_3 <- df_2 %>% 
+  ggplot(aes(x = age)) + 
+  geom_histogram(binwidth = 2, 
+                 fill = "#00B2EE", 
+                 color = "black") +
+  ylab("Frecuencia") + 
+  xlab("Edad (años)") + 
+  ggtitle("Edad de las personas encuestadas") + 
+  scale_x_continuous(breaks = seq(18, 91, 3)) +
+  theme(plot.title = element_text(hjust = 0.5, size = 17),
+        plot.caption = element_text(hjust = 0))
+#labs(caption = "Fuente: Gran Encuesta Integrada de Hogares (GEIH) 2018. Gráfica de elaboración propia.")
+
+
+test_4 <- df_2 %>% 
+  ggplot(., aes(x = totalHoursWorked )) + 
+  geom_bar(stat = "bin", 
+           fill = "royalblue", 
+           color = "black") +
+  ylab('Frecuencia') + 
+  xlab('Horas trabajadas') + 
+  scale_x_continuous(breaks = seq(0, 130, 10)) + 
+  scale_y_continuous(breaks = seq(0, 10000, 2000)) + 
+  ggtitle('Horas de trabajo semanal') + 
+  theme(plot.title = element_text(hjust = 0.5, 
+                                  size = 17), 
+        plot.caption = element_text(hjust = 0)) 
+#labs(caption = "Fuente: Gran Encuesta Integrada de Hogares (GEIH) 2018. Gráfica de elaboración propia.")
+
+### Matriz de gráficos del salario por hora
+independ_graph1 <- grid.arrange(test_3, test_4, ncol = 2)
+
+### Exportamos la matriz de gráficos del salario
+ggsave('independientes_1.jpeg', plot = independ_graph1, 
+       width = 10, height = 6, dpi = 300)
+
+
+### Generamos una tabla de frecuencia añadiendo los porcentajes de cada categoría
+genero <- df_2 %>% 
+  group_by(female) %>% 
+  summarize(freq = n()) %>% 
+  mutate(Pct = round(freq / sum(freq), 2))
+
+
+### Diagrama de barras con la variable female de la GEIH
+cat_graph_1 <- genero %>% 
+  ggplot(aes(x = factor(female), 
+             y = freq, 
+             fill = factor(female))) +
+  geom_col(color = "black") + 
+  geom_text(aes(label = scales::label_percent(accuracy = 0.1)(Pct)),
+            vjust = -0.5, size = 6) +
+  xlab("sexo") +  ylab("Frecuencia") + 
+  ggtitle("Distribución por genero") +
+  scale_fill_manual(values = c("dodgerblue1", "firebrick2"),
+                    labels = c("Hombre", "Mujer")) +
+  theme(plot.title = element_text(hjust = 0.5, 
+                                  size = 17), 
+        legend.title = element_blank(), 
+        axis.text.x = element_text(size = 14), 
+        axis.title.x = element_text(size = 15), 
+        axis.title.y = element_text(size = 15), 
+        legend.text = element_text(size = 12))
+
+
+### Eliminamos el único dato atípico que hay en la variable del nivel educativo
+df_2 <- df_2 %>% 
+  filter(!is.na(maxEducLevel))
+
+### Creamos un data frame con el porcentaje de las categorías del nivel educativo
+nivel_educ <- df_2 %>%
+  count(maxEducLevel) %>%
+  mutate(percentage = n / sum(n))
+
+
+### Diagrama de barras para el máximo nivel educativo alcanzado por los individuos
+cat_graph_2 <- nivel_educ %>% 
+  ggplot(aes(x = maxEducLevel, 
+             y = n, 
+             fill = maxEducLevel)) + 
+  geom_col(color = "black") + 
+  geom_text(aes(label = scales::label_percent(accuracy = 0.1)(percentage)),
+            vjust = -0.5, size = 6) +
+  ylab("Frecuencia") + 
+  xlab("Nivel educativo") + 
+  scale_y_continuous(breaks = seq(0, 8000, 1000)) + 
+  scale_fill_viridis(discrete = TRUE, option = "D") + 
+  ggtitle("Máximo nivel educativo\nalcanzado por los individuos") + 
+  theme(plot.title = element_text(hjust = 0.5, size = 17), 
+        plot.caption = element_text(hjust = 0), 
+        axis.text.x = element_text(size = 12, angle = 20, hjust = 1), 
+        axis.text.y = element_text(size = 11))
+
+### Guardamos las gráficas del genero y del nivel educativo en una matriz de gráficos
+independ_graph2 <- grid.arrange(cat_graph_1, 
+                                cat_graph_2, 
+                                ncol = 2)
+
+### Exportamos la matriz de gráficos del salario
+ggsave('independientes_2.jpeg', plot = independ_graph2, 
+       width = 15, height = 8, dpi = 300)
+
+
+
+
+
+##### Punto 3
+
+#Renombramos la base de datos
+db <- df_2
+# Verificamos las variables que usaremos
+colnames(db)
+
+# REGRESIÓN 1 : SALARIO - EDAD 
+
+# Preparamos variables para regresión ( Log salario y  edad cuadrado junto a algunos controles)
+db <- db %>% mutate(ln_wage = log(ingreso_total))
+db <- db %>% mutate(agesqr = age^2)
+
+db <- db %>% rename(nivel_educativo = p6210)
+db$nivel_educativo <- factor(
+  db$nivel_educativo,
+  levels = c(1, 2, 3, 4, 5, 6, 7),
+  labels = c("Ninguno",
+             "Preescolar",
+             "Básica primaria (1º - 5º)",
+             "Básica secundaria (6º - 9º)",
+             "Media (10º - 13º)",
+             "Superior o universitaria",
+             "No sabe, no informa")
+)
+
+
+db <- db %>% mutate(jefe_hogar = ifelse(p6050 == 1, 1, 0))
+
+db <- db %>%
+  mutate(relab = factor(relab,
+                        levels = 1:9,
+                        labels = c("Obrero o empleado de empresa particular",
+                                   "Obrero o empleado del gobierno",
+                                   "Empleado doméstico",
+                                   "Trabajador por cuenta propia",
+                                   "Patrón o empleador",
+                                   "Trabajador familiar sin remuneración",
+                                   "Trabajador sin remuneración en empresas o negocios de otros hogares",
+                                   "Jornalero o peón",
+                                   "Otro")))
+
+db <- db %>%
+  mutate(
+    sizeFirm = factor(
+      sizeFirm,
+      levels = 1:5,
+      labels = c("Self-employed",
+                 "2-5 workers",
+                 "6-10 workers",
+                 "11-50 workers",
+                 ">50 workers")
+    )
+  )
+
+
+# Creamos una base de datos filtrada con nuestras variables de interes y eliminamos los NA de estas variables
+bd_seleccionados <- db %>% dplyr::select(
+  ln_wage, totalHoursWorked, female, formal, 
+  nivel_educativo, age, agesqr, estrato1, jefe_hogar, relab, sizeFirm
+)
+#Eliminar las observaciones que tienen ingresos laborales cero o NAs. 
+bd_seleccionados <- bd_seleccionados %>%
+  filter(is.finite(ln_wage))
+
+
+
+# Regresamos nuestro modelo simple
+regedadsalario <- lm(ln_wage ~ age + agesqr, bd_seleccionados)
+summary(regedadsalario)
+stargazer(regedadsalario,
+          type = "text",
+          title = "Perfil edad-salario",
+          dep.var.labels = "Log salario",
+          covariate.labels = c("Edad", "Edad²"),
+          keep.stat = c("n", "rsq"))
+
+
+# Grafica para ver la edad donde el ingreso comienza a descender
+
+#Calculo de edad maxima
+b <- coef(regedadsalario)
+edad_pico <- -b["age"] / (2 * b["agesqr"])
+
+edades <- seq(min(bd_seleccionados$age, na.rm=TRUE),
+              max(bd_seleccionados$age, na.rm=TRUE), 1)
+
+salariopredicho <- b["(Intercept)"] + b["age"]*edades + b["agesqr"]*(edades^2)
+
+df_grafico <- data.frame(edad = edades, salariopredicho = salariopredicho)
+
+# Grafico
+ggplot(df_grafico, aes(edad, salariopredicho)) +
+  geom_line(color = "purple") +
+  geom_vline(xintercept = edad_pico, linetype = "dashed", color = "red") +
+  geom_text(aes(x = edad_pico, y = max(salariopredicho),
+                label = paste("Pico ≈", round(edad_pico,1), "años")),
+            vjust = -0.5, color = "red") +
+  labs(title = "Perfil edad–salario estimado",
+       x = "Edad", y = "Log salario") +
+  theme_classic()
+
+
+ggsave("perfil_edad_salario.jpg", plot = last_plot(),
+       width = 8, height = 6, dpi = 300)
+
+
+# REGRESIÓN 1 : SALARIO - EDAD  - CONTROLES
+
+table(bd_seleccionados$female)
+# Para mejorar nuestro modelo incluimos las variables de control 
+regedadsalario2 <- lm( ln_wage ~ age + agesqr + totalHoursWorked + female + formal + jefe_hogar + nivel_educativo + 
+                         estrato1 + relab + sizeFirm,data = bd_seleccionados)
+summary(regedadsalario2)
+stargazer(regedadsalario2,
+          type = "text",
+          title = "Perfil edad-salario con controles",
+          dep.var.labels = "Log salario",
+          covariate.labels = c("Edad", "Edad²"),
+          keep.stat = c("n", "rsq"))
+
+
+#Calculo de edad maxima
+
+b <- coef(regedadsalario2)
+edad_pico2 <- -b["age"] / (2 * b["agesqr"])
+
+# Secuencia de edades 
+edades2 <- seq(min(bd_seleccionados$age, na.rm = TRUE),
+               max(bd_seleccionados$age, na.rm = TRUE), by = 1)
+
+# Valores predichos
+salariopredicho2 <- b["(Intercept)"] + b["age"] * edades2 + b["agesqr"] * (edades2^2)
+
+# Creamos un df para la grafica
+df_grafico <- data.frame(edad = edades2, salariopredicho = salariopredicho2)
+
+
+ggplot(df_grafico, aes(x = edad, y = salariopredicho)) +
+  geom_line(color = "purple") +
+  geom_vline(xintercept = edad_pico2, linetype = "dashed", color = "red") +
+  geom_text(aes(x = edad_pico2, y = max(salariopredicho, na.rm = TRUE),
+                label = paste("Pico ≈", round(edad_pico2, 1), "años")),
+            vjust = -0.5, color = "red") +
+  labs(title = "Perfil edad–salario estimado (con controles)",
+       x = "Edad", y = "Log salario") +
+  theme_classic()
+
+ggsave("Perfil_edad–salario_estimado_con_controles.jpg", plot = last_plot(),
+       width = 8, height = 6, dpi = 300)
+
+
+
+# Para mejorar nuestro modelo incluimos las variables de control sin estrato ni jefe de hogar.
+# El analisis de nuestros controles nos hace reflexionar que la variable de estrato
+# puede considerarse un mal control porque puede estar correlacionado con el salario
+# como consecuencia del mismo. Ademas,  la variable jefe_hogar puede llegar a ser un mas control, 
+# ya que el salario puede condicionar quién es jefe de hogar, no solo al revés.
+
+
+regedadsalario3 <- lm( ln_wage ~ age + agesqr + totalHoursWorked + female + formal +  nivel_educativo + 
+                         + relab + sizeFirm,data = bd_seleccionados)
+summary(regedadsalario3)
+stargazer(regedadsalario3,
+          type = "text",
+          title = "Perfil edad-salario con controles",
+          dep.var.labels = "Log salario",
+          covariate.labels = c("Edad", "Edad²"),
+          keep.stat = c("n", "rsq"))
+
+
+#Calculo de edad maxima
+
+b <- coef(regedadsalario3)
+edad_pico2 <- -b["age"] / (2 * b["agesqr"])
+
+# Secuencia de edades 
+edades3 <- seq(min(bd_seleccionados$age, na.rm = TRUE),
+               max(bd_seleccionados$age, na.rm = TRUE), by = 1)
+
+# Valores predichos
+salariopredicho3 <- b["(Intercept)"] + b["age"] * edades2 + b["agesqr"] * (edades2^2)
+
+# Creamos un df para la grafica
+df_grafico <- data.frame(edad = edades3, salariopredicho = salariopredicho3)
+
+
+ggplot(df_grafico, aes(x = edad, y = salariopredicho)) +
+  geom_line(color = "purple") +
+  geom_vline(xintercept = edad_pico2, linetype = "dashed", color = "red") +
+  geom_text(aes(x = edad_pico2, y = max(salariopredicho, na.rm = TRUE),
+                label = paste("Pico ≈", round(edad_pico2, 1), "años")),
+            vjust = -0.5, color = "red") +
+  labs(title = "Perfil edad–salario estimado (sin malos controles)",
+       x = "Edad", y = "Log salario") +
+  theme_classic()
+
+ggsave("Perfil_edad–salario_estimado_sin_maloscontroles.jpg", plot = last_plot(),
+       width = 8, height = 6, dpi = 300)
+
+# Creamos tabla comparativa de las tres regresiones 
+# Formato Texto R
+stargazer(regedadsalario, regedadsalario2, regedadsalario3,
+          type = "text",
+          title = "Perfil edad–salario (comparativo)",
+          dep.var.labels = "Log salario",
+          column.labels = c("Básico", "Con controles", "Sin malos controles"),
+          keep = c("age", "agesqr"),
+          covariate.labels = c("Edad", "Edad²"),
+          keep.stat = c("n", "rsq", "adj.rsq"))
+
+# Formato latex
+stargazer(regedadsalario, regedadsalario2, regedadsalario3,
+          type = "latex", out = "tabla_edad_salario.tex",
+          title = "Perfil edad–salario (comparativo)",
+          dep.var.labels = "Log salario",
+          column.labels = c("Básico", "Con controles", "Sin malos controles"),
+          keep = c("age", "agesqr"),
+          covariate.labels = c("Edad", "Edad²"),
+          keep.stat = c("n", "rsq", "adj.rsq"))
+
+
+
+# BOOTSTRAP DEL MODELO CON INTERVALOS DE CONFIANZA 
+
+set.seed(2025)
+
+#Creamos una función que me permita sacar los coeficientes de mi modelo simple
+coeficientes <- function(bd_seleccionados, indices) {
+  fit <- lm(ln_wage ~ age + agesqr, data = bd_seleccionados[indices, ])
+  return(coef(fit))
+}
+
+#Corremos el bootstrap y obtenemos los indices y los errores estandar
+bootstrap <- boot(data = bd_seleccionados, statistic = coeficientes, R = 10000)
+coeficientesboostrap <- bootstrap$t0
+errores <- apply(bootstrap$t,2,sd)
+
+# Crear una secuencia de edades para estimar el log del ingreso
+edades <- seq(min(bd_seleccionados$age,na.rm=TRUE), max(bd_seleccionados$age,na.rm=TRUE),length=50)
+edades
+
+#Creamos los intervalos de confianza 
+
+salario_estimado <- coeficientesboostrap[1] + coeficientesboostrap[2]*edades + coeficientesboostrap[3]*edades^2
+
+icinferior <- (coeficientesboostrap[1] - 1.96*errores[1]) +
+  (coeficientesboostrap[2] - 1.96*errores[2])*edades +
+  (coeficientesboostrap[3] - 1.96*errores[3])*(edades^2)
+
+icsuperior <- (coeficientesboostrap[1] + 1.96*errores[1]) +
+  (coeficientesboostrap[2] + 1.96*errores[2])*edades +
+  (coeficientesboostrap[3] + 1.96*errores[3])*(edades^2)
+
+
+# Creamos un Data frame con los resultados de salario estimado e intervalos de confianza
+df <- data.frame(
+  edad = edades,
+  salario_estimado = salario_estimado,
+  limite_inferior = icinferior,
+  limite_superior = icsuperior
+)
+
+df <- df %>% mutate(salario_estimado = exp(salario_estimado),
+                    limite_inferior = exp(limite_inferior),
+                    limite_superior = exp(limite_superior))
+
+
+#Calculamos la edad pico en este caso
+edad_pico_boot <- -coeficientesboostrap[2] / (2 * coeficientesboostrap[3])
+
+#Extraemos la estimación de salario
+punto_max <- df[which.max(df$salario_estimado), ]
+
+# Gráfico con la etiqueta
+ggplot(df, aes(x = edad, y = salario_estimado)) +
+  geom_ribbon(aes(ymin = limite_inferior, ymax = limite_superior), alpha = 0.25, fill = "grey") +
+  geom_line(linewidth = 1, color = "green") +
+  geom_vline(xintercept = punto_max$edad, linetype = "dashed", color = "black") +
+  geom_point(data = punto_max, aes(x = edad, y = salario_estimado), color = "black", size = 3) +
+  geom_text(aes(x = punto_max$edad, y = punto_max$salario_estimado,
+                label = paste0("Pico ≈ ", round(punto_max$edad, 1), " años\n$",
+                               format(round(punto_max$salario_estimado, 0), big.mark = ","))),
+            vjust = -1, color = "black", size = 3.2, fontface = "plain") +
+  labs(title = "Perfil edad–salario con bootstrap",
+       x = "Edad", y = "Salario en $") +
+  theme_classic()
+
+ggsave("perfil_edad_salario_bootstrap_con_pico.jpg", plot = last_plot(),
+       width = 8, height = 6, dpi = 300)
+
+
+
+
+
+
+
+
+
+
+## Este scrip desarrolla el punto 4 The gender earnings GAP.
+
+
+# REGRESIÓN SALARIO - FEMALE 
+
+# Modelo simple de brecha salarial por género
+reggenero <- lm(ln_wage ~ female, data = bd_seleccionados)
+summary(reggenero)
+
+stargazer(reggenero,
+          title = "Brecha salarial por género",
+          dep.var.labels = "Log salario",
+          covariate.labels = c("Mujer"),
+          keep.stat = c("n", "rsq", "adj.rsq"),
+          type = "text")
+
+
+# REGRESIÓN SALARIO - FEMALE CON CONTROLES
+
+#Alimentamos la base de datos seleccionados con otras variables que serviran como controles 
+
+
+bd_seleccionados <- db %>%
+  dplyr::select(
+    ln_wage,
+    nivel_educativo, formal, oficio, relab,
+    totalHoursWorked, sizeFirm, estrato1,
+    jefe_hogar, age, agesqr, female, microEmpresa
+  )
+
+#Eliminar las observaciones que tienen ingresos laborales cero o NAs. 
+bd_seleccionados <- bd_seleccionados %>%
+  filter(is.finite(ln_wage))
+
+#Regresión con nuevos controles ( Sin los malos controles previamente identificados) 
+
+reggenero2 <- lm(
+  ln_wage ~ female +
+    nivel_educativo + formal + oficio + relab +
+    totalHoursWorked + sizeFirm + age + agesqr +  microEmpresa,
+  data = bd_seleccionados
+)
+
+
+summary(reggenero2)
+stargazer(reggenero2,
+          title = "Brecha salarial por género (con controles)",
+          align = TRUE,
+          dep.var.labels = "Logaritmo del salario",
+          covariate.labels = c("Mujer", "Nivel educativo", "Formalidad", 
+                               "Ocupación (oficio)", "Relación laboral", 
+                               "Horas totales de trabajo ", "Tamaño empresa",
+                               "Edad", "Edad al cuadrado",
+                               "Microempresa"),
+          keep.stat = c("n", "rsq", "adj.rsq"),
+          type = "text")
+
+
+
+
+
+# APLICACIÓN DE TEOREMA DE FWL CON BOOTSTRAP
+
+#creamos variable female sin etiquetas para aplicar FWL
+bd_seleccionados <- bd_seleccionados %>%
+  dplyr::mutate(female_num = ifelse(female == "Mujer", 1, 0))
+
+
+# Obtenemos los residuales de la regresión de los controles sobre la variable Female
+
+bd_seleccionados$res_mujer <- resid(
+  lm(female_num ~ nivel_educativo + formal + oficio + relab +
+       totalHoursWorked + sizeFirm  +
+       age + agesqr + microEmpresa,
+     data = bd_seleccionados,
+     na.action = na.exclude)
+)
+
+
+# Obtenemos los residuales de la regresión de los controles sobre el salario 
+bd_seleccionados$res_salario <- resid(
+  lm(ln_wage ~ nivel_educativo + formal + oficio + relab +
+       totalHoursWorked + sizeFirm + 
+       age + agesqr + microEmpresa,
+     data = bd_seleccionados,
+     na.action = na.exclude)
+)
+
+# Regresamos los residuales del salario contra residuales de female 
+regbrecha <- lm(res_salario ~ res_mujer, data = bd_seleccionados)
+stargazer(regbrecha,
+          title = "Brecha salarial por género (Método FWL)",
+          dep.var.labels = "Residuales del salario",
+          covariate.labels = c("Residuales de mujer"),
+          keep.stat = c("n", "rsq", "adj.rsq"),
+          digits = 3,
+          type = "text")
+
+
+# Comparamos nuestros tres modelos 
+
+stargazer(
+  reggenero, reggenero2, regbrecha,
+  type   = "latex",
+  title  = "Comparación de modelos de brecha salarial",
+  label  = "tab:brecha_genero_modelos",
+  column.labels  = c("Sin controles", "Con controles", "FWL"),
+  keep = c("^Mujer$", "^femaleMujer$", "^res_mujer$", "^female$"),
+  covariate.labels = c("Mujer"),
+  keep.stat  = c("n","rsq","adj.rsq"),
+  omit.stat  = c("f","ser","ll","aic","bic"),
+  digits = 3,
+  align  = TRUE,
+  no.space = TRUE,
+  header  = FALSE,
+  add.lines = list(
+    c("Variable dependiente", 
+      "Log salario", "Log salario (con controles)", "Residuales del salario")
+  )
+)
+
+
+## Usamos FWL  con bootstrap 
+
+btrap <- function(data, index){
+  d <- data[index, , drop = FALSE]
+  d$res_mujer <- resid(
+    lm(female_num ~ nivel_educativo + formal + oficio + relab +
+         totalHoursWorked + sizeFirm + 
+         age + agesqr + microEmpresa,
+       data = d, na.action = na.exclude)
+  )
+  d$res_salario <- resid(
+    lm(ln_wage ~ nivel_educativo + formal + oficio + relab +
+         totalHoursWorked + sizeFirm + 
+         age + agesqr + microEmpresa,
+       data = d, na.action = na.exclude)
+  )
+  
+  coef(lm(res_salario ~ res_mujer, data = d))[2]
+}
+
+set.seed(2025)
+boot(bd_seleccionados, btrap, R = 10000)
+
+
+
+#Grafica de predicción por genero
+
+#Segmentamos las regresiones segun el género
+
+modelohombres<- lm(ln_wage ~ age + agesqr,
+                   data = bd_seleccionados, subset = (female == "Hombre"))
+modelomujeres <- lm(ln_wage ~ age + agesqr,
+                    data = bd_seleccionados, subset = (female == "Mujer"))
+
+
+
+# Construimos una secuencia de edades para predecir
+seqedades <- seq(min(bd_seleccionados$age, na.rm = TRUE),
+                 max(bd_seleccionados$age, na.rm = TRUE), by = 1)
+
+
+# Creamos un data frame con las edades y las edades al cuadrado
+dataedad <- data.frame(age = seqedades, agesqr = seqedades^2)
+
+# Predicciones
+prediccionhombres  <- predict(modelohombres, newdata = dataedad, se.fit = TRUE)
+prediccionmujeres  <- predict(modelomujeres, newdata = dataedad, se.fit = TRUE)
+
+
+# Submuestras por género
+basehombre <- subset(bd_seleccionados, female == "Hombre")
+basemujer <- subset(bd_seleccionados, female == "Mujer")
+
+# Edades pico con los coeficientes de cada modelo
+picohombre <- -coef(modelohombres)["age"]   /(2 * coef(modelohombres)["agesqr"])
+picomujer <- -coef(modelomujeres)["age"]   /(2 * coef(modelomujeres)["agesqr"])
+
+
+# bootstrap para pico de edad en cada regresión
+edadpico <- function(data, indices){
+  d <- data[indices, , drop = FALSE]
+  cf <- coef(lm(ln_wage ~ age + agesqr, data = d))
+  -cf["age"]/(2*cf["agesqr"])
+}
+set.seed(2025)
+bootstraph <- boot(basehombre, edadpico, R = 2000)
+bootstrapm <- boot(basemujer,  edadpico, R = 2000)
+
+ci_h <- quantile(bootstraph$t[,1], probs = c(0.025, 0.975), na.rm = TRUE)
+ci_m <- quantile(bootstrapm$t[,1], probs = c(0.025, 0.975), na.rm = TRUE)
+
+# Creamos u df para graficas
+dfgrafico <- data.frame(
+  edad    = seqedades,
+  hombres = prediccionhombres$fit,
+  mujeres = prediccionmujeres$fit
+)
+
+
+
+etiquetas <- sprintf("Edad pico Hombres: %.1f (IC95%% %.1f–%.1f)\nEdad pico Mujeres: %.1f (IC95%% %.1f–%.1f)",
+                     picohombre, ci_h[1], ci_h[2],
+                     picomujer, ci_m[1], ci_m[2])
+
+ggplot() +
+  geom_line(data = dfgrafico, aes(x = edad, y = hombres, color = "Hombres"), size = 1) +
+  geom_line(data = dfgrafico, aes(x = edad, y = mujeres, color = "Mujeres"), size = 1) +
+  geom_vline(xintercept = picohombre, color = "#1b9e77", linetype = "dashed") + 
+  geom_vline(xintercept = picomujer,  color = "#d95f02", linetype = "dashed")  +
+  annotate("rect", xmin = ci_h[1], xmax = ci_h[2],
+           ymin = -Inf, ymax = Inf,
+           alpha = 0.15, fill = "#66c2a5") + 
+  annotate("rect", xmin = ci_m[1], xmax = ci_m[2],
+           ymin = -Inf, ymax = Inf,
+           alpha = 0.15, fill = "#fc8d62") +  
+  annotate("text", x = max(seqedades) * 0.7, 
+           y = max(c(dfgrafico$hombres, dfgrafico$mujeres), na.rm = TRUE),
+           label = etiquetas, hjust = 0, vjust = 1, color = "black", size = 4) +
+  labs(title = "Perfil Edad-Salario por Género",
+       x = "Edad", y = "Log salario",
+       color = "Género") +
+  scale_color_manual(values = c("Hombres" = "#1b9e77", "Mujeres" = "#d95f02")) +
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "bottom",
+        plot.margin = margin(t = 30, r = 20, b = 20, l = 20))
+
+
+ggsave("perfil_edad_salario_genero.jpg", plot = last_plot(),
+       width = 8, height = 6, dpi = 300)
+
+
+
+
+
+
+
+
+
+
+
+
+set.seed(10101)  # Semilla para reproducibilidad
+
+# Crear partición: 70% entrenamiento, 30% prueba
+inTrain <- createDataPartition(
+  y = bd_seleccionados$totalHoursWorked,  # se usa outcome para balance
+  p = 0.70,
+  list = FALSE
+)
+
+training <- bd_seleccionados[inTrain, ]
+testing  <- bd_seleccionados[-inTrain, ]
+
+# Aseguramos que no haya NA/NaN/Inf en la variable dependiente
+training <- training |> filter(is.finite(ln_wage))
+testing  <- testing  |> filter(is.finite(ln_wage))
+
+
+# -------------------------
+# Verificación de la partición
+# -------------------------
+split_data <- data.frame(
+  Split = factor(c("Training", "Testing")),
+  Count = c(nrow(training), nrow(testing)),
+  Percentage = c(nrow(training)/nrow(bd_seleccionados)*100,
+                 nrow(testing)/nrow(bd_seleccionados)*100)
+)
+
+# -------- Gráfico 1: Distribución Train-Test --------
+# =====================================================
+# Tema global estilo limpio y claro
+# =====================================================
+library(ggplot2)
+library(patchwork)
+
+mi_tema <- theme_bw(base_size = 14, base_family = "sans") +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 13, face = "bold"),
+    axis.text = element_text(size = 12, color = "black"),
+    panel.grid.major = element_line(color = "grey80", size = 0.4),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA, size = 0.6)
+  )
+
+theme_set(mi_tema)
+
+# =====================================================
+# 1. Distribución Train-Test
+# =====================================================
+p1 <- ggplot(split_data, aes(x = Split, y = Count, fill = Split)) +
+  geom_col(width = 0.6, show.legend = FALSE) +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%\n(n=", Count, ")")),
+            vjust = -0.5, size = 4.5, fontface = "bold", color = "black") +
+  labs(
+    title = "Distribución Train-Test (70%-30%)",
+    y = "Número de observaciones",
+    x = NULL
+  ) +
+  scale_fill_manual(values = c("Training" = "#1f77b4", "Testing" = "#ff7f0e")) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  theme(panel.grid.major.x = element_blank())
+
+# =====================================================
+# 2. Proceso de partición
+# =====================================================
+partition_process <- data.frame(
+  Conjunto = factor(c("Base completa", "Training", "Testing"),
+                    levels = c("Base completa", "Training", "Testing")),
+  Observaciones = c(nrow(bd_seleccionados), nrow(training), nrow(testing))
+)
+
+p2 <- ggplot(partition_process, aes(x = Conjunto, y = Observaciones, fill = Conjunto)) +
+  geom_col(width = 0.6, show.legend = FALSE) +
+  geom_text(aes(label = paste0("n = ", Observaciones)),
+            vjust = -0.5, size = 4.5, fontface = "bold", color = "black") +
+  labs(
+    title = "Proceso de partición de datos",
+    x = NULL,
+    y = "Número de observaciones"
+  ) +
+  scale_fill_manual(values = c("Base completa" = "#6baed6",
+                               "Training" = "#1f77b4",
+                               "Testing" = "#ff7f0e")) +
+  theme(panel.grid.major.x = element_blank())
+
+# -------- Combinar en una sola figura (2 columnas, 1 fila) --------
+# install.packages("gridExtra")
+library(gridExtra)
+
+grid.arrange(p2, p1, ncol = 2)  # 2 columnas, 1 fila
+# grid.arrange(p1, p2, nrow = 2)  # 2 filas, 1 columna
+
+# (b)
+# install.packages("Metrics")
+library(Metrics)   # para RMSE
+library(caret)
+
+# Asegurar mismos niveles en factores categóricos
+categoricas <- c("female", "formal", "nivel_educativo", "relab", "sizeFirm")
+
+for (var in categoricas) {
+  testing[[var]] <- factor(testing[[var]], levels = levels(training[[var]]))
+}
+
+
+# Modelo 1: edad–salario simple
+modelo_edadsal <- lm(ln_wage ~ age + agesqr, data = training)
+pred1 <- predict(modelo_edadsal, newdata = testing)
+rmse1 <- RMSE(pred = pred1, obs = testing$ln_wage)
+
+# Modelo 2: edad–salario con controles
+modelo_edadsal2 <- lm(
+  ln_wage ~ age + agesqr + totalHoursWorked + female + formal + nivel_educativo + relab + sizeFirm,
+  data = training
+)
+pred2 <- predict(modelo_edadsal2, newdata = testing)
+rmse2 <- RMSE(pred2, testing$ln_wage)
+
+table(testing$relab)
+
+sum(is.na(pred2))
+sum(is.na(testing$ln_wage))
+valid_idx <- !is.na(pred2)
+rmse2 <- RMSE(pred2[valid_idx], testing$ln_wage[valid_idx])
+rmse2
+
+# Modelo 3: brecha de género simple
+modelo_gen <- lm(ln_wage ~ female, data = training)
+pred3 <- predict(modelo_gen, newdata = testing)
+rmse3 <- RMSE(pred3, testing$ln_wage)
+
+# Modelo 4: brecha de género con controles
+modelo_gen2 <- lm(
+  ln_wage ~ female + nivel_educativo + formal + oficio + relab +
+    totalHoursWorked + sizeFirm + age + agesqr + microEmpresa,
+  data = training
+)
+pred4 <- predict(modelo_gen2, newdata = testing)
+rmse4 <- RMSE(pred4, testing$ln_wage)
+
+valid_idx <- !is.na(pred4)
+rmse4 <- RMSE(pred4[valid_idx], testing$ln_wage[valid_idx])
+rmse4
+
+# Especificación 5: polinomio cúbico en la edad
+form_5 <- ln_wage ~ poly(age, 3, raw = TRUE) + female + formal
+modelo5 <- lm(form_5, data = training)
+pred5 <- predict(modelo5, testing)
+rmse5 <- RMSE(pred5, testing$ln_wage)
+
+# Especificación 6: interacciones edad*género
+form_6 <- ln_wage ~ age * female + agesqr + formal + totalHoursWorked
+modelo6 <- lm(form_6, data = training)
+pred6 <- predict(modelo6, testing)
+rmse6 <- RMSE(pred6, testing$ln_wage)
+
+# Especificación 7: interacciones edad*nivel educativo
+form_7 <- ln_wage ~ poly(age, 2, raw=TRUE) * nivel_educativo + female
+modelo7 <- lm(form_7, data = training)
+pred7 <- predict(modelo7, testing)
+rmse7 <- RMSE(pred7, testing$ln_wage)
+
+valid_idx <- !is.na(pred7)
+rmse7 <- RMSE(pred7[valid_idx], testing$ln_wage[valid_idx])
+rmse7
+
+
+# Especificación 8: modelo con splines en edad
+library(splines)
+library(caret)
+# install.packages("elasticnet")
+library(lars)
+library(elasticnet)
+library(Metrics)
+
+
+form_8 <- ln_wage ~ bs(age, df=5) + female + formal + nivel_educativo
+modelo8 <- lm(form_8, data = training)
+pred8 <- predict(modelo8, testing)
+rmse8 <- RMSE(pred8, testing$ln_wage)
+
+valid_idx <- !is.na(pred8)
+rmse8 <- RMSE(pred8[valid_idx], testing$ln_wage[valid_idx])
+rmse8
+
+
+# Especificación 9: modelo regularizado (ridge con caret)
+form_9 <- ln_wage ~ bs(age, df=10) + female + formal + nivel_educativo
+modelo9 <- lm(form_9, data = training)
+pred9 <- predict(modelo9, testing)
+rmse9 <- RMSE(pred9, testing$ln_wage)
+
+valid_idx <- !is.na(pred9)
+rmse9 <- RMSE(pred9[valid_idx], testing$ln_wage[valid_idx])
+rmse9
+
+# Comparar resultados: Guardamos todo en una tabla para visualizar:
+
+rmse_results <- data.frame(
+  Modelo = c("Edad–Salario simple",
+             "Edad–Salario + controles",
+             "Género simple",
+             "Género + controles",
+             "Polinomio cúbico edad",
+             "Edad*Género",
+             "Edad*Nivel educativo",
+             "Splines en edad",
+             "Ridge regularizado"),
+  RMSE = c(rmse1, rmse2, rmse3, rmse4,
+           rmse5, rmse6, rmse7, rmse8, rmse9)
+)
+
+print(rmse_results)
+
+library(ggplot2)
+
+ggplot(rmse_results, aes(x = reorder(Modelo, RMSE), y = RMSE)) +
+  geom_col(aes(fill = RMSE), width = 0.6, show.legend = FALSE) +
+  geom_text(aes(label = round(RMSE, 3)), 
+            hjust = -0.2, color = "black", size = 4, fontface = "bold") +
+  coord_flip() +
+  labs(title = "Comparación del RMSE en distintos modelos",
+       x = NULL, y = "RMSE") +
+  scale_fill_gradient(low = "#6BAED6", high = "#08306B") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5, color = "#08306B"),
+    axis.text.y = element_text(face = "bold", color = "#333333"),
+    axis.text.x = element_text(color = "#333333"),
+    panel.grid.major.y = element_blank()
+  )
+# ================================
+# Punto (c): Análisis de resultados
+# ================================
+
+library(ggplot2)
+library(dplyr)
+
+# 1. Identificar el modelo con menor RMSE
+best_model_idx <- which.min(rmse_results$RMSE)
+best_model_name <- rmse_results$Modelo[best_model_idx]
+best_rmse <- rmse_results$RMSE[best_model_idx]
+
+cat("El mejor modelo es:", best_model_name, 
+    "con un RMSE de", round(best_rmse, 4), "\n")
+
+# 2. Seleccionar predicciones y errores según el modelo ganador
+# (ajustar nombres de objetos predX según tu script: pred1, pred2, ..., pred9)
+
+pred_list <- list(pred1, pred2, pred3, pred4, pred5, pred6, pred7, pred8, pred9)
+names(pred_list) <- rmse_results$Modelo
+
+best_pred <- pred_list[[best_model_name]]
+
+# Calcular errores de predicción
+errors <- testing$ln_wage - best_pred
+
+error_df <- data.frame(
+  observed = testing$ln_wage,
+  predicted = best_pred,
+  error = errors
+)
+
+# 3. Graficar distribución de errores
+ggplot(error_df, aes(x = error)) +
+  geom_histogram(aes(y = ..density..), bins = 30, 
+                 fill = "#1f77b4", color = "white", alpha = 0.7) +
+  geom_density(color = "#d62728", size = 1.2, linetype = "solid") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1) +
+  labs(
+    title = paste("Distribución de errores -", best_model_name),
+    x = "Error (observado - predicho)",
+    y = "Densidad"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5, color = "#333333"),
+    axis.text = element_text(face = "bold", color = "#333333")
+  )
+
+# 4. Identificar outliers (cola superior/inferior del IQR)
+Q1 <- quantile(error_df$error, 0.25, na.rm = TRUE)
+Q3 <- quantile(error_df$error, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+
+outliers <- error_df %>%
+  filter(error < (Q1 - 1.5 * IQR) | error > (Q3 + 1.5 * IQR))
+
+cat("Número de outliers detectados:", nrow(outliers), "\n")
+head(outliers, 10)  # mostrar los primeros 10
+
+# ================================
+# Punto (c): Análisis de resultados
+# ================================
+
+library(ggplot2)
+library(dplyr)
+
+# 1. Identificar el modelo con menor RMSE
+best_model_idx <- which.min(rmse_results$RMSE)
+best_model_name <- rmse_results$Modelo[best_model_idx]
+best_rmse <- rmse_results$RMSE[best_model_idx]
+
+cat("El mejor modelo es:", best_model_name, 
+    "con un RMSE de", round(best_rmse, 4), "\n")
+
+# 2. Seleccionar predicciones y errores según el modelo ganador
+# (ajustar nombres de objetos predX según tu script: pred1, pred2, ..., pred9)
+
+pred_list <- list(pred1, pred2, pred3, pred4, pred5, pred6, pred7, pred8, pred9)
+names(pred_list) <- rmse_results$Modelo
+
+best_pred <- pred_list[[best_model_name]]
+
+# Calcular errores de predicción
+errors <- testing$ln_wage - best_pred
+
+error_df <- data.frame(
+  observed = testing$ln_wage,
+  predicted = best_pred,
+  error = errors
+)
+
+# 3. Graficar distribución de errores
+ggplot(error_df, aes(x = error)) +
+  geom_histogram(aes(y = ..density..), bins = 30, 
+                 fill = "#1f77b4", color = "white", alpha = 0.7) +
+  geom_density(color = "#d62728", size = 1.2, linetype = "solid") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1) +
+  labs(
+    title = paste("Distribución de errores -", best_model_name),
+    x = "Error (observado - predicho)",
+    y = "Densidad"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5, color = "#333333"),
+    axis.text = element_text(face = "bold", color = "#333333")
+  )
+
+# 4. Identificar outliers (cola superior/inferior del IQR)
+Q1 <- quantile(error_df$error, 0.25, na.rm = TRUE)
+Q3 <- quantile(error_df$error, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+
+outliers <- error_df %>%
+  filter(error < (Q1 - 1.5 * IQR) | error > (Q3 + 1.5 * IQR))
+
+cat("Número de outliers detectados:", nrow(outliers), "\n")
+head(outliers, 10)  # mostrar los primeros 10
+
+# ------------------------------------------------------
+# 5) LOOCV para los dos mejores modelos
+# ------------------------------------------------------
+
+library(caret)
+library(dplyr)
+library(splines)
+
+# Definimos fórmulas de los modelos
+formulas_modelos <- list(
+  "Edad–Salario simple"       = ln_wage ~ age + agesqr,
+  "Edad–Salario + controles"  = ln_wage ~ age + agesqr + totalHoursWorked + female + formal + nivel_educativo + relab + sizeFirm,
+  "Género simple"             = ln_wage ~ female,
+  "Género + controles"        = ln_wage ~ female + nivel_educativo + formal + oficio + relab +
+    totalHoursWorked + sizeFirm + age + agesqr + microEmpresa,
+  "Polinomio cúbico edad"     = ln_wage ~ poly(age, 3, raw = TRUE) + female + formal,
+  "Edad*Género"               = ln_wage ~ age * female + agesqr + formal + totalHoursWorked,
+  "Edad*Nivel educativo"      = ln_wage ~ poly(age, 2, raw=TRUE) * nivel_educativo + female,
+  "Splines en edad"           = ln_wage ~ bs(age, df=5) + female + formal + nivel_educativo,
+  "Ridge regularizado"        = ln_wage ~ bs(age, df=10) + female + formal + nivel_educativo
+)
+
+# Función rápida de LOOCV usando hatvalues
+loocv_lm_fast <- function(formula, data) {
+  fit <- lm(formula, data = data)
+  h <- hatvalues(fit)
+  res <- residuals(fit)
+  
+  # Evitar divisiones por cero
+  if (any(h >= 1)) {
+    h[h >= 1] <- 0.999999
+  }
+  
+  cv_errors <- (res / (1 - h))^2
+  sqrt(mean(cv_errors, na.rm = TRUE))
+}
+
+# Seleccionar los dos mejores modelos según RMSE en test set
+mejores <- rmse_results %>% arrange(RMSE) %>% head(2)
+
+# Calcular LOOCV RMSE para esos modelos
+loocv_results <- data.frame(
+  Modelo = mejores$Modelo,
+  RMSE_Test = mejores$RMSE,
+  RMSE_LOOCV = sapply(mejores$Modelo, function(nombre) {
+    formula_actual <- formulas_modelos[[nombre]]
+    loocv_lm_fast(formula_actual, training)
+  })
+)
+
+print(loocv_results)
+
+library(knitr)
+
+# Imprimir tabla en formato LaTeX
+kable(loocv_results,
+      format = "latex",
+      booktabs = TRUE,
+      caption = "RMSE en Test set y LOOCV para los dos mejores modelos",
+      digits = 4)
