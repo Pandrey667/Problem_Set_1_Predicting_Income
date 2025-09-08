@@ -125,18 +125,18 @@ genero <- df_2 %>%
   mutate(Pct = round(freq / sum(freq), 2))
 
 
-### Diagrama de barras con la variable sex de la GEIH
+### Diagrama de barras con la variable female de la GEIH
 cat_graph_1 <- genero %>% 
-  ggplot(aes(x = factor(sex), 
+  ggplot(aes(x = factor(female), 
              y = freq, 
-             fill = factor(sex))) +
+             fill = factor(female))) +
   geom_col(color = "black") + 
   geom_text(aes(label = scales::label_percent(accuracy = 0.1)(Pct)),
             vjust = -0.5, size = 6) +
-  xlab("Sexo") +  ylab("Frecuencia") + 
-  ggtitle("Distribución por sexo") +
+  xlab("sexo") +  ylab("Frecuencia") + 
+  ggtitle("Distribución por genero") +
   scale_fill_manual(values = c("dodgerblue1", "firebrick2"),
-                    labels = c("Mujer", "Hombre")) +
+                    labels = c("Hombre", "Mujer")) +
   theme(plot.title = element_text(hjust = 0.5, 
                                   size = 17), 
         legend.title = element_blank(), 
@@ -144,6 +144,7 @@ cat_graph_1 <- genero %>%
         axis.title.x = element_text(size = 15), 
         axis.title.y = element_text(size = 15), 
         legend.text = element_text(size = 12))
+
 
 ### Eliminamos el único dato atípico que hay en la variable del nivel educativo
 df_2 <- df_2 %>% 
