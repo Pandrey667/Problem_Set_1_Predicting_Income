@@ -8,7 +8,7 @@ Dentro de la carpeta principal se encuentran las siguientes subcarpetas:
 
 document: contiene el archivo pdf del documento final. 
 
-scripts: contiene los códigos del taller en R scrip. Invitamos a seguir la siguiente secuencia en los scripts para ejecutar el código de manera fluida. Los scripts fueron organizados de forma independiente por cada punto, con el fin de mantener un código más ordenado. La secuencia sugerida es la siguiente: 2.Data_parte A , 2.Data_parte B , 3. Reg Salario – Edad.R , 4. Reg Salario – Género.R , 5. Predicting wages
+scripts: contiene los códigos del taller en R scrip. Invitamos a seguir la siguiente secuencia en los scripts para ejecutar el código de manera fluida. Los scripts fueron organizados de forma independiente por cada punto, con el fin de mantener un código más ordenado. La secuencia sugerida es la siguiente: 2.Data parte 1 , 2.Data parte 2  , 3. Reg Salario – Edad.R , 4. Reg Salario – Género.R , 5. Predictions
 
 stores: contiene los conjuntos de datos utilizados.
 
