@@ -1,11 +1,5 @@
 ## Este scrip desarrolla el punto 4 The gender earnings GAP.
 
-Directorio <- "C:/Users/investigacion/Desktop/BD ML/Taller 1 BDML/PS_Repo/stores"
-
-setwd(Directorio)
-load("bd_seleccionados.RData")
-
-
 
 # REGRESIÓN SALARIO - FEMALE 
 
@@ -237,7 +231,3 @@ ggplot() +
 ggsave("perfil_edad_salario_genero.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
 
-
-ruta_bd <- file.path(Directorio, "bd_seleccionados.RData")
-save(bd_seleccionados, file = ruta_bd)
-message("Guardado en: ", normalizePath(ruta_bd, winslash = "/"))

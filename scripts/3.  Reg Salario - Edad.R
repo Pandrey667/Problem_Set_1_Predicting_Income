@@ -1,12 +1,4 @@
-## Este scrip desarrolla el punto 3 Age-wage profile.
-
-
-Directorio <- "C:/Users/investigacion/Desktop/BD ML/Taller 1 BDML/PS_Repo/stores"
-
-setwd(Directorio)
-load("base_taller_BD.RData")
-
-
+## Este scrip desarrolla el punto 3 Edad Salario
 
 # intalación de paquetes 
 library(tidyverse)
@@ -308,10 +300,3 @@ ggplot(df, aes(x = edad, y = salario_estimado)) +
 
 ggsave("perfil_edad_salario_bootstrap_con_pico.jpg", plot = last_plot(),
        width = 8, height = 6, dpi = 300)
-
-
-
-ruta_bd <- file.path(Directorio, "bd_seleccionados.RData")
-save(bd_seleccionados, file = ruta_bd)
-message("Guardado en: ", normalizePath(ruta_bd, winslash = "/"))
-
