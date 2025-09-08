@@ -139,14 +139,4 @@ df_2$formal <- factor(df_2$formal,
                       labels = c('informal', 
                                  'formal'))
 
-### Recategorizamos la variable de niveles educativos
-df_2$maxEducLevel <- factor(
-  df_2$maxEducLevel,
-  levels = c(1, 2, 3, 4, 5, 6, 7),
-  labels = c("Ninguno",
-             "Preescolar",
-             "Básica primaria (1º - 5º)",
-             "Básica secundaria (6º - 9º)",
-             "Media (10º - 13º)",
-             "Superior o universitaria",
-             "No sabe, no informa"))
+
