@@ -2,7 +2,6 @@
 
 # intalación de paquetes 
 library(tidyverse)
-library(stargazer)
 library(boot)
 
 #Renombramos la base de datos
@@ -15,11 +14,6 @@ colnames(db)
 # Preparamos variables para regresión ( Log salario y  edad cuadrado junto a algunos controles)
 db <- db %>% mutate(ln_wage = log(ingreso_total))
 db <- db %>% mutate(agesqr = age^2)
-db <- db %>%  mutate(female = factor(ifelse(sex == 0, 1, 0),
-                                     levels = c(0, 1),
-                                     labels = c("Hombre", "Mujer")))
-db <- db %>% mutate(formal = factor(formal, levels = c(1, 0),
-                                    labels = c("Formal", "Informal")))
 db <- db %>% rename(nivel_educativo = p6210)
 db$nivel_educativo <- factor(
   db$nivel_educativo,
@@ -33,11 +27,6 @@ db$nivel_educativo <- factor(
              "No sabe, no informa")
 )
 
-db <- db %>%
-  mutate(estrato1 = factor(estrato1,
-                           levels = 1:6,
-                           labels = c("Estrato 1","Estrato 2","Estrato 3",
-                                      "Estrato 4","Estrato 5","Estrato 6")))
 
 db <- db %>% mutate(jefe_hogar = ifelse(p6050 == 1, 1, 0))
 db <- db %>%
