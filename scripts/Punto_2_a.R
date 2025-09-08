@@ -10,6 +10,8 @@ library(modelsummary)  ## Tablas de salida en formato LaTeX
 library(ggplot2)       ## Gramática de gráficos
 library(gridExtra)     ## Matriz de gráficas en ggplot2
 library(viridis)       ## Paleta de colores para gráficas
+library(stargazer)     ## tablas en stargazer
+library(boot)
 
 ### URL de la página de GitHub del doctor Ignacio Sarmiento
 url_base <- "https://ignaciomsarmiento.github.io/GEIH2018_sample/pages/"
@@ -128,25 +130,13 @@ datasummary_df(final,
 
 
 ### Recategorizamos la variable dicotómica de género (0 )
-df_2$sex <- factor(df_2$sex, 
-                   levels = c(0, 1), 
-                   labels = c('Hombre', 
-                              'Mujer'))
+df_2 <- df_2 %>%  
+  mutate(female = factor(ifelse(sex == 0, 1, 0),
+                         levels = c(0, 1),
+                         labels = c("Hombre", "Mujer")))
 
 ### Recategorizamos la variable dicotómica de trabajo formal
 df_2$formal <- factor(df_2$formal, 
                       levels = c(0, 1), 
                       labels = c('informal', 
                                  'formal'))
-
-### Recategorizamos la variable de niveles educativos
-df_2$maxEducLevel <- factor(
-  df_2$maxEducLevel,
-  levels = c(1, 2, 3, 4, 5, 6, 7),
-  labels = c("Ninguno",
-             "Preescolar",
-             "Básica primaria (1º - 5º)",
-             "Básica secundaria (6º - 9º)",
-             "Media (10º - 13º)",
-             "Superior o universitaria",
-             "No sabe, no informa"))
