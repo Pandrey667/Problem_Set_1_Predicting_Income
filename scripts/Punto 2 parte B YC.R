@@ -120,7 +120,7 @@ ggsave('independientes_1.jpeg', plot = independ_graph1,
 
 ### Generamos una tabla de frecuencia añadiendo los porcentajes de cada categoría
 genero <- df_2 %>% 
-  group_by(sex) %>% 
+  group_by(female) %>% 
   summarize(freq = n()) %>% 
   mutate(Pct = round(freq / sum(freq), 2))
 
